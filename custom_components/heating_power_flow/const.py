@@ -8,6 +8,11 @@ CONF_TYPE = "config_type"
 TYPE_STANDARD = "standard"
 TYPE_DUAL_LINE = "dual_line"
 
+# Circuit mode
+CONF_MODE = "mode"
+MODE_SOURCE = "source"
+MODE_SINK = "sink"
+
 # Standard triplet config keys
 CONF_NAME = "name"
 CONF_FLOW_SENSOR = "flow_sensor"

@@ -6,11 +6,13 @@
         "description": "Erstelle einen virtuellen Energiedurchfluss-Sensor aus vorhandenen Durchfluss- und Temperatursensoren.",
         "data": {
           "name": "Name",
-          "config_type": "Konfigurationstyp"
+          "config_type": "Konfigurationstyp",
+          "mode": "Kreislauf-Modus"
         },
         "data_description": {
           "name": "Name für diesen Energiedurchfluss-Monitor",
-          "config_type": "Standard: Ein Durchfluss + Vorlauf-/Rücklauftemperatur. Dual-Line: Zwei Leitungen mit gemeinsamer Rücklauftemperatur."
+          "config_type": "Standard: Ein Durchfluss + Vorlauf-/Rücklauftemperatur. Dual-Line: Zwei Leitungen mit gemeinsamer Rücklauftemperatur.",
+          "mode": "Quelle: Erzeugt thermische Energie (z.B. Wärmepumpe, Kessel). Senke: Verbraucht thermische Energie (z.B. Heizkörperkreis, Fußbodenheizung, Warmwasser)."
         }
       },
       "standard": {
@@ -49,6 +51,15 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Kreislauf-Modus",
+        "data": {
+          "mode": "Kreislauf-Modus"
+        },
+        "data_description": {
+          "mode": "Quelle: Erzeugt thermische Energie. Senke: Verbraucht thermische Energie."
+        }
+      },
       "standard": {
         "title": "Standard-Triplet neu konfigurieren",
         "data": {

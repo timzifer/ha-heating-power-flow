@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -21,6 +22,7 @@ from .const import (
     CONF_FLOW_A,
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
+    CONF_MODE,
     CONF_NAME,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
@@ -28,6 +30,7 @@ from .const import (
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
     DOMAIN,
+    MODE_SOURCE,
     TYPE_DUAL_LINE,
 )
 from .coordinator import (
@@ -70,6 +73,7 @@ def _create_standard_entities(
         CoolingEnergySensor(coordinator, entry, name, "", "energy"),
         DeltaTSensor(coordinator, entry, name, "", "delta_t"),
         FlowRateSensor(coordinator, entry, name),
+        CircuitModeSensor(coordinator, entry, name),
     ]
 
 
@@ -98,6 +102,7 @@ def _create_dual_line_entities(
         DualLineCoolingEnergySensor(
             coordinator, entry, name, "Total", "total_energy"
         ),
+        CircuitModeSensor(coordinator, entry, name),
     ]
 
 
@@ -115,11 +120,15 @@ class HeatingPowerFlowBaseSensor(SensorEntity):
     ) -> None:
         """Initialize the base sensor."""
         self._coordinator = coordinator
+        config_type_label = (
+            entry.data.get(CONF_TYPE, "standard").replace("_", " ").title()
+        )
+        mode_label = entry.data.get(CONF_MODE, MODE_SOURCE).title()
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=base_name,
             manufacturer="Heating Power Flow",
-            model=entry.data.get(CONF_TYPE, "standard").replace("_", " ").title(),
+            model=f"{config_type_label} ({mode_label})",
             entry_type=DeviceEntryType.SERVICE,
         )
 
@@ -358,6 +367,30 @@ class FlowRateSensor(HeatingPowerFlowBaseSensor):
     def _handle_update(self) -> None:
         """Handle coordinator updates."""
         self.async_write_ha_state()
+
+
+class CircuitModeSensor(HeatingPowerFlowBaseSensor):
+    """Diagnostic sensor exposing the circuit mode (source/sink)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:swap-vertical"
+
+    def __init__(
+        self,
+        coordinator: StandardFlowCoordinator | DualLineFlowCoordinator,
+        entry: ConfigEntry,
+        name: str,
+    ) -> None:
+        """Initialize the circuit mode sensor."""
+        super().__init__(coordinator, entry, name)
+        self._attr_unique_id = f"{entry.entry_id}_circuit_mode"
+        self._attr_name = "Circuit Mode"
+        self._mode = entry.data.get(CONF_MODE, MODE_SOURCE)
+
+    @property
+    def native_value(self) -> str:
+        """Return the circuit mode."""
+        return self._mode
 
 
 # =============================================================================
