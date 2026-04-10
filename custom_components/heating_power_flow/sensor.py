@@ -13,6 +13,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -114,13 +115,13 @@ class HeatingPowerFlowBaseSensor(SensorEntity):
     ) -> None:
         """Initialize the base sensor."""
         self._coordinator = coordinator
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": base_name,
-            "manufacturer": "Heating Power Flow",
-            "model": entry.data.get(CONF_TYPE, "standard").replace("_", " ").title(),
-            "entry_type": "service",
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=base_name,
+            manufacturer="Heating Power Flow",
+            model=entry.data.get(CONF_TYPE, "standard").replace("_", " ").title(),
+            entry_type=DeviceEntryType.SERVICE,
+        )
 
 
 # =============================================================================
