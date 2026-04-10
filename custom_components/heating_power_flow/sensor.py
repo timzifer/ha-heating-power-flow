@@ -69,6 +69,7 @@ def _create_standard_entities(
     """Create sensor entities for a standard triplet configuration."""
     return [
         PowerSensor(coordinator, entry, name, "", "power_kw"),
+        SystemPowerSensor(coordinator, entry, name, "power_kw"),
         HeatingEnergySensor(coordinator, entry, name, "", "energy"),
         CoolingEnergySensor(coordinator, entry, name, "", "energy"),
         DeltaTSensor(coordinator, entry, name, "", "delta_t"),
@@ -102,6 +103,7 @@ def _create_dual_line_entities(
         DualLineCoolingEnergySensor(
             coordinator, entry, name, "Total", "total_energy"
         ),
+        SystemPowerSensor(coordinator, entry, name, "total_power_kw"),
         CircuitModeSensor(coordinator, entry, name),
     ]
 
@@ -391,6 +393,55 @@ class CircuitModeSensor(HeatingPowerFlowBaseSensor):
     def native_value(self) -> str:
         """Return the circuit mode."""
         return self._mode
+
+
+class SystemPowerSensor(HeatingPowerFlowBaseSensor):
+    """System-perspective power sensor.
+
+    Shows positive power for sources (energy into the system)
+    and negative power for sinks (energy out of the system).
+    """
+
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 2
+    _attr_icon = "mdi:home-lightning-bolt"
+
+    def __init__(
+        self,
+        coordinator: StandardFlowCoordinator | DualLineFlowCoordinator,
+        entry: ConfigEntry,
+        name: str,
+        power_attr: str,
+    ) -> None:
+        """Initialize the system power sensor."""
+        super().__init__(coordinator, entry, name)
+        self._attr_unique_id = f"{entry.entry_id}_system_power"
+        self._attr_name = "System Power"
+        self._power_attr = power_attr
+        self._sign = -1.0 if entry.data.get(CONF_MODE) == MODE_SINK else 1.0
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the system-perspective power value."""
+        raw = getattr(self._coordinator, self._power_attr, None)
+        if raw is None:
+            return None
+        return raw * self._sign
+
+    async def async_added_to_hass(self) -> None:
+        """Register callback when added to hass."""
+        self._coordinator.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callback when removed from hass."""
+        self._coordinator.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle coordinator updates."""
+        self.async_write_ha_state()
 
 
 # =============================================================================
