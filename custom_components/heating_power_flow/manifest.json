@@ -6,5 +6,5 @@
   "documentation": "https://github.com/timzifer/ha-heating-power-flow",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/timzifer/ha-heating-power-flow/issues",
-  "version": "0.0.3"
+  "version": "0.0.4"
 }
