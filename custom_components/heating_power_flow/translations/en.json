@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Heating Power Flow",
+        "description": "Create a virtual energy flow sensor from existing flow and temperature sensors.",
+        "data": {
+          "name": "Name",
+          "config_type": "Configuration type"
+        },
+        "data_description": {
+          "name": "Name for this energy flow monitor",
+          "config_type": "Standard: one flow + supply/return temperature. Dual-Line: two lines with shared return temperature."
+        }
+      },
+      "standard": {
+        "title": "Standard Triplet Configuration",
+        "description": "Select the flow sensor and temperature sensors for the supply and return lines.",
+        "data": {
+          "flow_sensor": "Flow sensor",
+          "supply_temp": "Supply temperature",
+          "return_temp": "Return temperature"
+        },
+        "data_description": {
+          "flow_sensor": "Sensor measuring the volumetric flow rate (e.g. L/min, m³/h)",
+          "supply_temp": "Temperature sensor on the supply line",
+          "return_temp": "Temperature sensor on the return line"
+        }
+      },
+      "dual_line": {
+        "title": "Dual-Line Configuration",
+        "description": "Select the flow and temperature sensors for both lines and the shared return temperature.",
+        "data": {
+          "supply_temp_a": "Supply temperature A",
+          "flow_sensor_a": "Flow sensor line A",
+          "supply_temp_b": "Supply temperature B",
+          "flow_sensor_b": "Flow sensor line B",
+          "return_temp": "Common return temperature"
+        },
+        "data_description": {
+          "supply_temp_a": "Temperature sensor on supply line A",
+          "flow_sensor_a": "Flow rate sensor for line A (e.g. L/min, m³/h)",
+          "supply_temp_b": "Temperature sensor on supply line B",
+          "flow_sensor_b": "Flow rate sensor for line B (e.g. L/min, m³/h)",
+          "return_temp": "Shared return temperature sensor"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "standard": {
+        "title": "Reconfigure Standard Triplet",
+        "data": {
+          "flow_sensor": "Flow sensor",
+          "supply_temp": "Supply temperature",
+          "return_temp": "Return temperature"
+        }
+      },
+      "dual_line": {
+        "title": "Reconfigure Dual-Line",
+        "data": {
+          "supply_temp_a": "Supply temperature A",
+          "flow_sensor_a": "Flow sensor line A",
+          "supply_temp_b": "Supply temperature B",
+          "flow_sensor_b": "Flow sensor line B",
+          "return_temp": "Common return temperature"
+        }
+      }
+    }
+  }
+}

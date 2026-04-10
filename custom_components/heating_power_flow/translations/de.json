@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Heizleistungs-Durchfluss",
+        "description": "Erstelle einen virtuellen Energiedurchfluss-Sensor aus vorhandenen Durchfluss- und Temperatursensoren.",
+        "data": {
+          "name": "Name",
+          "config_type": "Konfigurationstyp"
+        },
+        "data_description": {
+          "name": "Name für diesen Energiedurchfluss-Monitor",
+          "config_type": "Standard: Ein Durchfluss + Vorlauf-/Rücklauftemperatur. Dual-Line: Zwei Leitungen mit gemeinsamer Rücklauftemperatur."
+        }
+      },
+      "standard": {
+        "title": "Standard-Triplet Konfiguration",
+        "description": "Wähle den Durchflusssensor und die Temperatursensoren für Vorlauf und Rücklauf.",
+        "data": {
+          "flow_sensor": "Durchflusssensor",
+          "supply_temp": "Vorlauftemperatur",
+          "return_temp": "Rücklauftemperatur"
+        },
+        "data_description": {
+          "flow_sensor": "Sensor für die Durchflussmenge (z.B. L/min, m³/h)",
+          "supply_temp": "Temperatursensor am Vorlauf",
+          "return_temp": "Temperatursensor am Rücklauf"
+        }
+      },
+      "dual_line": {
+        "title": "Dual-Line Konfiguration",
+        "description": "Wähle die Durchfluss- und Temperatursensoren für beide Leitungen sowie die gemeinsame Rücklauftemperatur.",
+        "data": {
+          "supply_temp_a": "Vorlauftemperatur A",
+          "flow_sensor_a": "Durchflusssensor Leitung A",
+          "supply_temp_b": "Vorlauftemperatur B",
+          "flow_sensor_b": "Durchflusssensor Leitung B",
+          "return_temp": "Gemeinsame Rücklauftemperatur"
+        },
+        "data_description": {
+          "supply_temp_a": "Temperatursensor am Vorlauf Leitung A",
+          "flow_sensor_a": "Durchflusssensor für Leitung A (z.B. L/min, m³/h)",
+          "supply_temp_b": "Temperatursensor am Vorlauf Leitung B",
+          "flow_sensor_b": "Durchflusssensor für Leitung B (z.B. L/min, m³/h)",
+          "return_temp": "Gemeinsamer Rücklauf-Temperatursensor"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "standard": {
+        "title": "Standard-Triplet neu konfigurieren",
+        "data": {
+          "flow_sensor": "Durchflusssensor",
+          "supply_temp": "Vorlauftemperatur",
+          "return_temp": "Rücklauftemperatur"
+        }
+      },
+      "dual_line": {
+        "title": "Dual-Line neu konfigurieren",
+        "data": {
+          "supply_temp_a": "Vorlauftemperatur A",
+          "flow_sensor_a": "Durchflusssensor Leitung A",
+          "supply_temp_b": "Vorlauftemperatur B",
+          "flow_sensor_b": "Durchflusssensor Leitung B",
+          "return_temp": "Gemeinsame Rücklauftemperatur"
+        }
+      }
+    }
+  }
+}
