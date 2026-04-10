@@ -11,18 +11,34 @@ from .const import (
     CONF_FLOW_A,
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
+    CONF_MODE,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
     CONF_SUPPLY_TEMP_A,
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
     DOMAIN,
+    MODE_SOURCE,
     PLATFORMS,
     TYPE_DUAL_LINE,
 )
 from .coordinator import DualLineFlowCoordinator, StandardFlowCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate old config entries."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version == 1:
+        new_data = {**config_entry.data, CONF_MODE: MODE_SOURCE}
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, version=2
+        )
+
+    _LOGGER.info("Migration to version %s successful", config_entry.version)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -48,6 +64,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return_temp_entity=entry.data[CONF_RETURN_TEMP],
         )
 
+    coordinator.mode = entry.data.get(CONF_MODE, MODE_SOURCE)
+
     await coordinator.async_start()
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
@@ -62,6 +80,9 @@ async def _async_update_listener(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> None:
     """Handle options update."""
+    if entry.options:
+        new_data = {**entry.data, **entry.options}
+        hass.config_entries.async_update_entry(entry, data=new_data, options={})
     await hass.config_entries.async_reload(entry.entry_id)
 
 

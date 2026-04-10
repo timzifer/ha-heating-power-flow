@@ -6,11 +6,13 @@
         "description": "Create a virtual energy flow sensor from existing flow and temperature sensors.",
         "data": {
           "name": "Name",
-          "config_type": "Configuration type"
+          "config_type": "Configuration type",
+          "mode": "Circuit mode"
         },
         "data_description": {
           "name": "Name for this energy flow monitor",
-          "config_type": "Standard: one flow + supply/return temperature. Dual-Line: two lines with shared return temperature."
+          "config_type": "Standard: one flow + supply/return temperature. Dual-Line: two lines with shared return temperature.",
+          "mode": "Source: produces thermal energy (e.g. heat pump, boiler). Sink: consumes thermal energy (e.g. radiator circuit, floor heating, hot water)."
         }
       },
       "standard": {
@@ -49,6 +51,15 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Circuit Mode",
+        "data": {
+          "mode": "Circuit mode"
+        },
+        "data_description": {
+          "mode": "Source: produces thermal energy. Sink: consumes thermal energy."
+        }
+      },
       "standard": {
         "title": "Reconfigure Standard Triplet",
         "data": {

@@ -14,6 +14,7 @@ from .const import (
     CONF_FLOW_A,
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
+    CONF_MODE,
     CONF_NAME,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
@@ -21,6 +22,8 @@ from .const import (
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
     DOMAIN,
+    MODE_SINK,
+    MODE_SOURCE,
     TYPE_DUAL_LINE,
     TYPE_STANDARD,
 )
@@ -33,7 +36,7 @@ ENTITY_SELECTOR = selector.EntitySelector(
 class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Heating Power Flow."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -46,6 +49,7 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._data[CONF_NAME] = user_input[CONF_NAME]
             self._data[CONF_TYPE] = user_input[CONF_TYPE]
+            self._data[CONF_MODE] = user_input[CONF_MODE]
 
             if user_input[CONF_TYPE] == TYPE_STANDARD:
                 return await self.async_step_standard()
@@ -66,6 +70,21 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                                 selector.SelectOptionDict(
                                     value=TYPE_DUAL_LINE,
                                     label="Dual-Line (Special)",
+                                ),
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Required(CONF_MODE, default=MODE_SOURCE): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(
+                                    value=MODE_SOURCE,
+                                    label="Source (Heat producer)",
+                                ),
+                                selector.SelectOptionDict(
+                                    value=MODE_SINK,
+                                    label="Sink (Heat consumer)",
                                 ),
                             ],
                             mode=selector.SelectSelectorMode.DROPDOWN,
@@ -134,21 +153,52 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self._config_entry = config_entry
+        self._options_data: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Manage the options."""
-        if self._config_entry.data.get(CONF_TYPE) == TYPE_DUAL_LINE:
-            return await self.async_step_dual_line(user_input)
-        return await self.async_step_standard(user_input)
+        """Handle mode selection as the first options step."""
+        if user_input is not None:
+            self._options_data[CONF_MODE] = user_input[CONF_MODE]
+            if self._config_entry.data.get(CONF_TYPE) == TYPE_DUAL_LINE:
+                return await self.async_step_dual_line()
+            return await self.async_step_standard()
+
+        current_mode = self._config_entry.data.get(CONF_MODE, MODE_SOURCE)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_MODE, default=current_mode
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(
+                                    value=MODE_SOURCE,
+                                    label="Source (Heat producer)",
+                                ),
+                                selector.SelectOptionDict(
+                                    value=MODE_SINK,
+                                    label="Sink (Heat consumer)",
+                                ),
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+            ),
+        )
 
     async def async_step_standard(
         self, user_input: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Handle options for standard triplet."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(
+                title="", data={**self._options_data, **user_input}
+            )
 
         current = self._config_entry.data
         return self.async_show_form(
@@ -176,7 +226,9 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
     ) -> dict[str, Any]:
         """Handle options for dual-line."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(
+                title="", data={**self._options_data, **user_input}
+            )
 
         current = self._config_entry.data
         return self.async_show_form(
