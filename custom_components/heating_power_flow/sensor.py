@@ -30,6 +30,7 @@ from .const import (
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
     DOMAIN,
+    MODE_SINK,
     MODE_SOURCE,
     TYPE_DUAL_LINE,
 )
