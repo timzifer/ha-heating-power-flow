@@ -29,7 +29,7 @@
           "flow_sensor": "Sensor für die Durchflussmenge (z.B. L/min, m³/h)",
           "supply_temp": "Temperatursensor am Vorlauf",
           "return_temp": "Temperatursensor am Rücklauf",
-          "pump_entity": "Binärsensor, der anzeigt, ob die Umwälzpumpe läuft. Leer lassen, um Pumpen-Gating zu deaktivieren.",
+          "pump_entity": "Entity, die anzeigt, ob die Umwälzpumpe läuft (z.B. binary_sensor, switch). Leer lassen, um Pumpen-Gating zu deaktivieren.",
           "pump_delay": "Sekunden, die nach dem Einschalten der Pumpe gewartet wird, bevor Werte als gültig gelten."
         }
       },
@@ -51,7 +51,7 @@
           "supply_temp_b": "Temperatursensor am Vorlauf Leitung B",
           "flow_sensor_b": "Durchflusssensor für Leitung B (z.B. L/min, m³/h)",
           "return_temp": "Gemeinsamer Rücklauf-Temperatursensor",
-          "pump_entity": "Binärsensor, der anzeigt, ob die Umwälzpumpe läuft. Leer lassen, um Pumpen-Gating zu deaktivieren.",
+          "pump_entity": "Entity, die anzeigt, ob die Umwälzpumpe läuft (z.B. binary_sensor, switch). Leer lassen, um Pumpen-Gating zu deaktivieren.",
           "pump_delay": "Sekunden, die nach dem Einschalten der Pumpe gewartet wird, bevor Werte als gültig gelten."
         }
       }

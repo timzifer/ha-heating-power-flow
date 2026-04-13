@@ -29,7 +29,7 @@
           "flow_sensor": "Sensor measuring the volumetric flow rate (e.g. L/min, m³/h)",
           "supply_temp": "Temperature sensor on the supply line",
           "return_temp": "Temperature sensor on the return line",
-          "pump_entity": "Binary sensor indicating whether the circulation pump is running. Leave empty to disable pump gating.",
+          "pump_entity": "Entity indicating whether the circulation pump is running (e.g. binary_sensor, switch). Leave empty to disable pump gating.",
           "pump_delay": "Seconds to wait after pump turns on before values are considered valid."
         }
       },
@@ -51,7 +51,7 @@
           "supply_temp_b": "Temperature sensor on supply line B",
           "flow_sensor_b": "Flow rate sensor for line B (e.g. L/min, m³/h)",
           "return_temp": "Shared return temperature sensor",
-          "pump_entity": "Binary sensor indicating whether the circulation pump is running. Leave empty to disable pump gating.",
+          "pump_entity": "Entity indicating whether the circulation pump is running (e.g. binary_sensor, switch). Leave empty to disable pump gating.",
           "pump_delay": "Seconds to wait after pump turns on before values are considered valid."
         }
       }

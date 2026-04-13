@@ -35,8 +35,8 @@ ENTITY_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor")
 )
 
-BINARY_ENTITY_SELECTOR = selector.EntitySelector(
-    selector.EntitySelectorConfig(domain=["binary_sensor", "input_boolean"])
+PUMP_ENTITY_SELECTOR = selector.EntitySelector(
+    selector.EntitySelectorConfig()
 )
 
 PUMP_DELAY_SELECTOR = selector.NumberSelector(
@@ -129,7 +129,7 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_FLOW_SENSOR): ENTITY_SELECTOR,
                     vol.Required(CONF_SUPPLY_TEMP): ENTITY_SELECTOR,
                     vol.Required(CONF_RETURN_TEMP): ENTITY_SELECTOR,
-                    vol.Optional(CONF_PUMP_ENTITY): BINARY_ENTITY_SELECTOR,
+                    vol.Optional(CONF_PUMP_ENTITY): PUMP_ENTITY_SELECTOR,
                     vol.Optional(
                         CONF_PUMP_DELAY, default=DEFAULT_PUMP_DELAY
                     ): PUMP_DELAY_SELECTOR,
@@ -157,7 +157,7 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_SUPPLY_TEMP_B): ENTITY_SELECTOR,
                     vol.Required(CONF_FLOW_B): ENTITY_SELECTOR,
                     vol.Required(CONF_RETURN_TEMP): ENTITY_SELECTOR,
-                    vol.Optional(CONF_PUMP_ENTITY): BINARY_ENTITY_SELECTOR,
+                    vol.Optional(CONF_PUMP_ENTITY): PUMP_ENTITY_SELECTOR,
                     vol.Optional(
                         CONF_PUMP_DELAY, default=DEFAULT_PUMP_DELAY
                     ): PUMP_DELAY_SELECTOR,
@@ -231,9 +231,9 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
         if current_pump:
             pump_schema[vol.Optional(
                 CONF_PUMP_ENTITY, default=current_pump
-            )] = BINARY_ENTITY_SELECTOR
+            )] = PUMP_ENTITY_SELECTOR
         else:
-            pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = BINARY_ENTITY_SELECTOR
+            pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = PUMP_ENTITY_SELECTOR
         pump_schema[vol.Optional(
             CONF_PUMP_DELAY,
             default=current.get(CONF_PUMP_DELAY, DEFAULT_PUMP_DELAY),
@@ -275,9 +275,9 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
         if current_pump:
             pump_schema[vol.Optional(
                 CONF_PUMP_ENTITY, default=current_pump
-            )] = BINARY_ENTITY_SELECTOR
+            )] = PUMP_ENTITY_SELECTOR
         else:
-            pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = BINARY_ENTITY_SELECTOR
+            pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = PUMP_ENTITY_SELECTOR
         pump_schema[vol.Optional(
             CONF_PUMP_DELAY,
             default=current.get(CONF_PUMP_DELAY, DEFAULT_PUMP_DELAY),
