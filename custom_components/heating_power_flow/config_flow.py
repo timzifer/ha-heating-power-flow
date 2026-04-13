@@ -16,11 +16,14 @@ from .const import (
     CONF_FLOW_SENSOR,
     CONF_MODE,
     CONF_NAME,
+    CONF_PUMP_DELAY,
+    CONF_PUMP_ENTITY,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
     CONF_SUPPLY_TEMP_A,
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
+    DEFAULT_PUMP_DELAY,
     DOMAIN,
     MODE_SINK,
     MODE_SOURCE,
@@ -32,11 +35,25 @@ ENTITY_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor")
 )
 
+BINARY_ENTITY_SELECTOR = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain=["binary_sensor", "input_boolean"])
+)
+
+PUMP_DELAY_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=0,
+        max=300,
+        step=1,
+        unit_of_measurement="s",
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
 
 class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Heating Power Flow."""
 
-    VERSION = 2
+    VERSION = 3
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -112,6 +129,10 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_FLOW_SENSOR): ENTITY_SELECTOR,
                     vol.Required(CONF_SUPPLY_TEMP): ENTITY_SELECTOR,
                     vol.Required(CONF_RETURN_TEMP): ENTITY_SELECTOR,
+                    vol.Optional(CONF_PUMP_ENTITY): BINARY_ENTITY_SELECTOR,
+                    vol.Optional(
+                        CONF_PUMP_DELAY, default=DEFAULT_PUMP_DELAY
+                    ): PUMP_DELAY_SELECTOR,
                 }
             ),
         )
@@ -136,6 +157,10 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_SUPPLY_TEMP_B): ENTITY_SELECTOR,
                     vol.Required(CONF_FLOW_B): ENTITY_SELECTOR,
                     vol.Required(CONF_RETURN_TEMP): ENTITY_SELECTOR,
+                    vol.Optional(CONF_PUMP_ENTITY): BINARY_ENTITY_SELECTOR,
+                    vol.Optional(
+                        CONF_PUMP_DELAY, default=DEFAULT_PUMP_DELAY
+                    ): PUMP_DELAY_SELECTOR,
                 }
             ),
         )
@@ -201,6 +226,19 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
             )
 
         current = self._config_entry.data
+        pump_schema: dict[vol.Optional, Any] = {}
+        current_pump = current.get(CONF_PUMP_ENTITY)
+        if current_pump:
+            pump_schema[vol.Optional(
+                CONF_PUMP_ENTITY, default=current_pump
+            )] = BINARY_ENTITY_SELECTOR
+        else:
+            pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = BINARY_ENTITY_SELECTOR
+        pump_schema[vol.Optional(
+            CONF_PUMP_DELAY,
+            default=current.get(CONF_PUMP_DELAY, DEFAULT_PUMP_DELAY),
+        )] = PUMP_DELAY_SELECTOR
+
         return self.async_show_form(
             step_id="standard",
             data_schema=vol.Schema(
@@ -217,6 +255,7 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
                         CONF_RETURN_TEMP,
                         default=current.get(CONF_RETURN_TEMP, ""),
                     ): ENTITY_SELECTOR,
+                    **pump_schema,
                 }
             ),
         )
@@ -231,6 +270,19 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
             )
 
         current = self._config_entry.data
+        pump_schema: dict[vol.Optional, Any] = {}
+        current_pump = current.get(CONF_PUMP_ENTITY)
+        if current_pump:
+            pump_schema[vol.Optional(
+                CONF_PUMP_ENTITY, default=current_pump
+            )] = BINARY_ENTITY_SELECTOR
+        else:
+            pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = BINARY_ENTITY_SELECTOR
+        pump_schema[vol.Optional(
+            CONF_PUMP_DELAY,
+            default=current.get(CONF_PUMP_DELAY, DEFAULT_PUMP_DELAY),
+        )] = PUMP_DELAY_SELECTOR
+
         return self.async_show_form(
             step_id="dual_line",
             data_schema=vol.Schema(
@@ -255,6 +307,7 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
                         CONF_RETURN_TEMP,
                         default=current.get(CONF_RETURN_TEMP, ""),
                     ): ENTITY_SELECTOR,
+                    **pump_schema,
                 }
             ),
         )

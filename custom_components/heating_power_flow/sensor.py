@@ -24,6 +24,7 @@ from .const import (
     CONF_FLOW_SENSOR,
     CONF_MODE,
     CONF_NAME,
+    CONF_PUMP_ENTITY,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
     CONF_SUPPLY_TEMP_A,
@@ -68,7 +69,7 @@ def _create_standard_entities(
     name: str,
 ) -> list[SensorEntity]:
     """Create sensor entities for a standard triplet configuration."""
-    return [
+    entities: list[SensorEntity] = [
         PowerSensor(coordinator, entry, name, "", "power_kw"),
         SystemPowerSensor(coordinator, entry, name, "power_kw"),
         HeatingEnergySensor(coordinator, entry, name, "", "energy"),
@@ -77,6 +78,20 @@ def _create_standard_entities(
         FlowRateSensor(coordinator, entry, name),
         CircuitModeSensor(coordinator, entry, name),
     ]
+    if entry.data.get(CONF_PUMP_ENTITY):
+        entities.extend([
+            GatedTemperatureSensor(
+                coordinator, entry, name,
+                "Supply Temperature", "supply_temp_value",
+                "supply_temp", "mdi:thermometer-chevron-up",
+            ),
+            GatedTemperatureSensor(
+                coordinator, entry, name,
+                "Return Temperature", "return_temp_value",
+                "return_temp", "mdi:thermometer-chevron-down",
+            ),
+        ])
+    return entities
 
 
 def _create_dual_line_entities(
@@ -85,7 +100,7 @@ def _create_dual_line_entities(
     name: str,
 ) -> list[SensorEntity]:
     """Create sensor entities for a dual-line configuration."""
-    return [
+    entities: list[SensorEntity] = [
         # Line A
         DualLinePowerSensor(coordinator, entry, name, "A", "power_a_kw"),
         DualLineHeatingEnergySensor(coordinator, entry, name, "A", "energy_a"),
@@ -107,6 +122,25 @@ def _create_dual_line_entities(
         SystemPowerSensor(coordinator, entry, name, "total_power_kw"),
         CircuitModeSensor(coordinator, entry, name),
     ]
+    if entry.data.get(CONF_PUMP_ENTITY):
+        entities.extend([
+            GatedTemperatureSensor(
+                coordinator, entry, name,
+                "Supply Temperature A", "supply_temp_a_value",
+                "supply_temp_a", "mdi:thermometer-chevron-up",
+            ),
+            GatedTemperatureSensor(
+                coordinator, entry, name,
+                "Supply Temperature B", "supply_temp_b_value",
+                "supply_temp_b", "mdi:thermometer-chevron-up",
+            ),
+            GatedTemperatureSensor(
+                coordinator, entry, name,
+                "Return Temperature", "return_temp_value",
+                "return_temp", "mdi:thermometer-chevron-down",
+            ),
+        ])
+    return entities
 
 
 class HeatingPowerFlowBaseSensor(SensorEntity):
@@ -430,6 +464,50 @@ class SystemPowerSensor(HeatingPowerFlowBaseSensor):
         if raw is None:
             return None
         return raw * self._sign
+
+    async def async_added_to_hass(self) -> None:
+        """Register callback when added to hass."""
+        self._coordinator.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callback when removed from hass."""
+        self._coordinator.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle coordinator updates."""
+        self.async_write_ha_state()
+
+
+class GatedTemperatureSensor(HeatingPowerFlowBaseSensor):
+    """Temperature passthrough sensor, gated by pump state."""
+
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+
+    def __init__(
+        self,
+        coordinator: StandardFlowCoordinator | DualLineFlowCoordinator,
+        entry: ConfigEntry,
+        name: str,
+        label: str,
+        attr: str,
+        unique_suffix: str,
+        icon: str,
+    ) -> None:
+        """Initialize the gated temperature sensor."""
+        super().__init__(coordinator, entry, name)
+        self._attr_unique_id = f"{entry.entry_id}_{unique_suffix}"
+        self._attr_name = label
+        self._attr_icon = icon
+        self._temp_attr = attr
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the temperature value (None when gate is inactive)."""
+        return getattr(self._coordinator, self._temp_attr, None)
 
     async def async_added_to_hass(self) -> None:
         """Register callback when added to hass."""

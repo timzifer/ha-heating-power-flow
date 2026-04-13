@@ -21,12 +21,16 @@
         "data": {
           "flow_sensor": "Durchflusssensor",
           "supply_temp": "Vorlauftemperatur",
-          "return_temp": "Rücklauftemperatur"
+          "return_temp": "Rücklauftemperatur",
+          "pump_entity": "Pumpen-Entity (optional)",
+          "pump_delay": "Pumpenverzögerung (Sekunden)"
         },
         "data_description": {
           "flow_sensor": "Sensor für die Durchflussmenge (z.B. L/min, m³/h)",
           "supply_temp": "Temperatursensor am Vorlauf",
-          "return_temp": "Temperatursensor am Rücklauf"
+          "return_temp": "Temperatursensor am Rücklauf",
+          "pump_entity": "Binärsensor, der anzeigt, ob die Umwälzpumpe läuft. Leer lassen, um Pumpen-Gating zu deaktivieren.",
+          "pump_delay": "Sekunden, die nach dem Einschalten der Pumpe gewartet wird, bevor Werte als gültig gelten."
         }
       },
       "dual_line": {
@@ -37,14 +41,18 @@
           "flow_sensor_a": "Durchflusssensor Leitung A",
           "supply_temp_b": "Vorlauftemperatur B",
           "flow_sensor_b": "Durchflusssensor Leitung B",
-          "return_temp": "Gemeinsame Rücklauftemperatur"
+          "return_temp": "Gemeinsame Rücklauftemperatur",
+          "pump_entity": "Pumpen-Entity (optional)",
+          "pump_delay": "Pumpenverzögerung (Sekunden)"
         },
         "data_description": {
           "supply_temp_a": "Temperatursensor am Vorlauf Leitung A",
           "flow_sensor_a": "Durchflusssensor für Leitung A (z.B. L/min, m³/h)",
           "supply_temp_b": "Temperatursensor am Vorlauf Leitung B",
           "flow_sensor_b": "Durchflusssensor für Leitung B (z.B. L/min, m³/h)",
-          "return_temp": "Gemeinsamer Rücklauf-Temperatursensor"
+          "return_temp": "Gemeinsamer Rücklauf-Temperatursensor",
+          "pump_entity": "Binärsensor, der anzeigt, ob die Umwälzpumpe läuft. Leer lassen, um Pumpen-Gating zu deaktivieren.",
+          "pump_delay": "Sekunden, die nach dem Einschalten der Pumpe gewartet wird, bevor Werte als gültig gelten."
         }
       }
     }
@@ -65,7 +73,9 @@
         "data": {
           "flow_sensor": "Durchflusssensor",
           "supply_temp": "Vorlauftemperatur",
-          "return_temp": "Rücklauftemperatur"
+          "return_temp": "Rücklauftemperatur",
+          "pump_entity": "Pumpen-Entity (optional)",
+          "pump_delay": "Pumpenverzögerung (Sekunden)"
         }
       },
       "dual_line": {
@@ -75,7 +85,9 @@
           "flow_sensor_a": "Durchflusssensor Leitung A",
           "supply_temp_b": "Vorlauftemperatur B",
           "flow_sensor_b": "Durchflusssensor Leitung B",
-          "return_temp": "Gemeinsame Rücklauftemperatur"
+          "return_temp": "Gemeinsame Rücklauftemperatur",
+          "pump_entity": "Pumpen-Entity (optional)",
+          "pump_delay": "Pumpenverzögerung (Sekunden)"
         }
       }
     }

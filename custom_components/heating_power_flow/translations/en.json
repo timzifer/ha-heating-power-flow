@@ -21,12 +21,16 @@
         "data": {
           "flow_sensor": "Flow sensor",
           "supply_temp": "Supply temperature",
-          "return_temp": "Return temperature"
+          "return_temp": "Return temperature",
+          "pump_entity": "Pump entity (optional)",
+          "pump_delay": "Pump delay (seconds)"
         },
         "data_description": {
           "flow_sensor": "Sensor measuring the volumetric flow rate (e.g. L/min, m³/h)",
           "supply_temp": "Temperature sensor on the supply line",
-          "return_temp": "Temperature sensor on the return line"
+          "return_temp": "Temperature sensor on the return line",
+          "pump_entity": "Binary sensor indicating whether the circulation pump is running. Leave empty to disable pump gating.",
+          "pump_delay": "Seconds to wait after pump turns on before values are considered valid."
         }
       },
       "dual_line": {
@@ -37,14 +41,18 @@
           "flow_sensor_a": "Flow sensor line A",
           "supply_temp_b": "Supply temperature B",
           "flow_sensor_b": "Flow sensor line B",
-          "return_temp": "Common return temperature"
+          "return_temp": "Common return temperature",
+          "pump_entity": "Pump entity (optional)",
+          "pump_delay": "Pump delay (seconds)"
         },
         "data_description": {
           "supply_temp_a": "Temperature sensor on supply line A",
           "flow_sensor_a": "Flow rate sensor for line A (e.g. L/min, m³/h)",
           "supply_temp_b": "Temperature sensor on supply line B",
           "flow_sensor_b": "Flow rate sensor for line B (e.g. L/min, m³/h)",
-          "return_temp": "Shared return temperature sensor"
+          "return_temp": "Shared return temperature sensor",
+          "pump_entity": "Binary sensor indicating whether the circulation pump is running. Leave empty to disable pump gating.",
+          "pump_delay": "Seconds to wait after pump turns on before values are considered valid."
         }
       }
     }
@@ -65,7 +73,9 @@
         "data": {
           "flow_sensor": "Flow sensor",
           "supply_temp": "Supply temperature",
-          "return_temp": "Return temperature"
+          "return_temp": "Return temperature",
+          "pump_entity": "Pump entity (optional)",
+          "pump_delay": "Pump delay (seconds)"
         }
       },
       "dual_line": {
@@ -75,7 +85,9 @@
           "flow_sensor_a": "Flow sensor line A",
           "supply_temp_b": "Supply temperature B",
           "flow_sensor_b": "Flow sensor line B",
-          "return_temp": "Common return temperature"
+          "return_temp": "Common return temperature",
+          "pump_entity": "Pump entity (optional)",
+          "pump_delay": "Pump delay (seconds)"
         }
       }
     }
