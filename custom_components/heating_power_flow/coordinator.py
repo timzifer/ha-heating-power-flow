@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 
 from .const import FLOW_UNIT_CONVERSIONS, POWER_FACTOR_L_MIN
 
@@ -82,8 +82,114 @@ class EnergyAccumulator:
         self._last_power_kw = power_kw
         self._last_update = now
 
+    def reset_tracking(self) -> None:
+        """Reset tracking state without losing accumulated energy."""
+        self._last_power_kw = None
+        self._last_update = None
 
-class StandardFlowCoordinator:
+
+class PumpGatingMixin:
+    """Mixin adding pump state gating to a coordinator."""
+
+    hass: HomeAssistant
+
+    def _init_pump(
+        self,
+        pump_entity: str | None,
+        pump_delay: int,
+    ) -> None:
+        """Initialize pump gating state."""
+        self._pump_entity = pump_entity
+        self._pump_delay = pump_delay
+        self._pump_active: bool = False
+        self._pump_raw_on: bool = False
+        self._pump_delay_unsub: CALLBACK_TYPE | None = None
+        self._pump_listeners: list[CALLBACK_TYPE] = []
+
+    @property
+    def pump_active(self) -> bool:
+        """Return True if pump gating allows values, or if pump gating is disabled."""
+        if self._pump_entity is None:
+            return True
+        return self._pump_active
+
+    async def _async_start_pump_tracking(self) -> None:
+        """Start listening to pump entity state changes."""
+        if self._pump_entity is None:
+            return
+        self._pump_listeners.append(
+            async_track_state_change_event(
+                self.hass, [self._pump_entity], self._async_pump_state_changed
+            )
+        )
+        self._check_initial_pump_state()
+
+    def _check_initial_pump_state(self) -> None:
+        """Check pump state at startup."""
+        state = self.hass.states.get(self._pump_entity)
+        if state is not None and state.state == "on":
+            self._pump_raw_on = True
+            self._start_pump_delay()
+        else:
+            self._pump_raw_on = False
+            self._pump_active = False
+
+    @callback
+    def _async_pump_state_changed(self, event: Event) -> None:
+        """Handle pump entity state changes."""
+        new_state = event.data.get("new_state")
+        if new_state is None:
+            return
+
+        if new_state.state == "on":
+            if not self._pump_raw_on:
+                self._pump_raw_on = True
+                self._start_pump_delay()
+        else:
+            self._pump_raw_on = False
+            self._cancel_pump_delay()
+            if self._pump_active:
+                self._pump_active = False
+                self._calculate()
+
+    def _start_pump_delay(self) -> None:
+        """Start the delay timer after pump turns on."""
+        self._cancel_pump_delay()
+        if self._pump_delay <= 0:
+            self._pump_active = True
+            self._calculate()
+            return
+        self._pump_delay_unsub = async_call_later(
+            self.hass, self._pump_delay, self._pump_delay_elapsed
+        )
+        self._calculate()
+
+    @callback
+    def _pump_delay_elapsed(self, _now: Any) -> None:
+        """Called when the pump delay timer expires."""
+        self._pump_delay_unsub = None
+        self._pump_active = True
+        self._calculate()
+
+    def _cancel_pump_delay(self) -> None:
+        """Cancel any pending pump delay timer."""
+        if self._pump_delay_unsub is not None:
+            self._pump_delay_unsub()
+            self._pump_delay_unsub = None
+
+    async def _async_stop_pump_tracking(self) -> None:
+        """Stop pump tracking and clean up."""
+        self._cancel_pump_delay()
+        for unsub in self._pump_listeners:
+            unsub()
+        self._pump_listeners.clear()
+
+    def _calculate(self) -> None:
+        """Must be implemented by the coordinator class."""
+        raise NotImplementedError
+
+
+class StandardFlowCoordinator(PumpGatingMixin):
     """Coordinator for a standard triplet (flow + supply temp + return temp)."""
 
     def __init__(
@@ -92,6 +198,8 @@ class StandardFlowCoordinator:
         flow_entity: str,
         supply_temp_entity: str,
         return_temp_entity: str,
+        pump_entity: str | None = None,
+        pump_delay: int = 30,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -104,8 +212,14 @@ class StandardFlowCoordinator:
         self.flow_rate_l_min: float | None = None
         self.energy = EnergyAccumulator()
 
+        # Gated temperature passthrough values
+        self.supply_temp_value: float | None = None
+        self.return_temp_value: float | None = None
+
         self._listeners: list[Any] = []
         self._update_callbacks: list[callback] = []
+
+        self._init_pump(pump_entity, pump_delay)
 
     def register_callback(self, cb: callback) -> None:
         """Register a callback for state updates."""
@@ -127,10 +241,12 @@ class StandardFlowCoordinator:
                 self.hass, entities, self._async_state_changed
             )
         )
+        await self._async_start_pump_tracking()
         self._calculate()
 
     async def async_stop(self) -> None:
         """Stop listening to state changes."""
+        await self._async_stop_pump_tracking()
         for unsub in self._listeners:
             unsub()
         self._listeners.clear()
@@ -150,16 +266,27 @@ class StandardFlowCoordinator:
             self.power_kw = None
             self.delta_t = None
             self.flow_rate_l_min = None
+            self.supply_temp_value = None
+            self.return_temp_value = None
             self._notify()
             return
 
+        # Delta T and flow rate always pass through
         flow_unit = _get_flow_unit(self.hass, self.flow_entity)
         self.flow_rate_l_min = _convert_flow_to_l_min(flow_raw, flow_unit)
         self.delta_t = supply_temp - return_temp
-        self.power_kw = calculate_power_kw(self.flow_rate_l_min, self.delta_t)
 
-        now = datetime.now(timezone.utc)
-        self.energy.update(self.power_kw, now)
+        if self.pump_active:
+            self.power_kw = calculate_power_kw(self.flow_rate_l_min, self.delta_t)
+            self.supply_temp_value = supply_temp
+            self.return_temp_value = return_temp
+            now = datetime.now(timezone.utc)
+            self.energy.update(self.power_kw, now)
+        else:
+            self.power_kw = 0.0
+            self.supply_temp_value = None
+            self.return_temp_value = None
+            self.energy.reset_tracking()
 
         self._notify()
 
@@ -169,7 +296,7 @@ class StandardFlowCoordinator:
             cb()
 
 
-class DualLineFlowCoordinator:
+class DualLineFlowCoordinator(PumpGatingMixin):
     """Coordinator for dual-line configuration (two supply lines, shared return)."""
 
     def __init__(
@@ -180,6 +307,8 @@ class DualLineFlowCoordinator:
         flow_entity_b: str,
         supply_temp_entity_b: str,
         return_temp_entity: str,
+        pump_entity: str | None = None,
+        pump_delay: int = 30,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -203,8 +332,15 @@ class DualLineFlowCoordinator:
         self.total_power_kw: float | None = None
         self.total_energy = EnergyAccumulator()
 
+        # Gated temperature passthrough values
+        self.supply_temp_a_value: float | None = None
+        self.supply_temp_b_value: float | None = None
+        self.return_temp_value: float | None = None
+
         self._listeners: list[Any] = []
         self._update_callbacks: list[callback] = []
+
+        self._init_pump(pump_entity, pump_delay)
 
     def register_callback(self, cb: callback) -> None:
         """Register a callback for state updates."""
@@ -228,10 +364,12 @@ class DualLineFlowCoordinator:
                 self.hass, entities, self._async_state_changed
             )
         )
+        await self._async_start_pump_tracking()
         self._calculate()
 
     async def async_stop(self) -> None:
         """Stop listening to state changes."""
+        await self._async_stop_pump_tracking()
         for unsub in self._listeners:
             unsub()
         self._listeners.clear()
@@ -262,9 +400,13 @@ class DualLineFlowCoordinator:
             flow_unit_a = _get_flow_unit(self.hass, self.flow_entity_a)
             flow_a_l_min = _convert_flow_to_l_min(flow_a_raw, flow_unit_a)
             self.delta_t_a = supply_a - return_temp
-            power_a = calculate_power_kw(flow_a_l_min, self.delta_t_a)
-            self.power_a_kw = power_a
-            self.energy_a.update(power_a, now)
+            if self.pump_active:
+                power_a = calculate_power_kw(flow_a_l_min, self.delta_t_a)
+                self.power_a_kw = power_a
+                self.energy_a.update(power_a, now)
+            else:
+                self.power_a_kw = 0.0
+                self.energy_a.reset_tracking()
         else:
             self.power_a_kw = None
             self.delta_t_a = None
@@ -274,25 +416,47 @@ class DualLineFlowCoordinator:
             flow_unit_b = _get_flow_unit(self.hass, self.flow_entity_b)
             flow_b_l_min = _convert_flow_to_l_min(flow_b_raw, flow_unit_b)
             self.delta_t_b = supply_b - return_temp
-            power_b = calculate_power_kw(flow_b_l_min, self.delta_t_b)
-            self.power_b_kw = power_b
-            self.energy_b.update(power_b, now)
+            if self.pump_active:
+                power_b = calculate_power_kw(flow_b_l_min, self.delta_t_b)
+                self.power_b_kw = power_b
+                self.energy_b.update(power_b, now)
+            else:
+                self.power_b_kw = 0.0
+                self.energy_b.reset_tracking()
         else:
             self.power_b_kw = None
             self.delta_t_b = None
 
         # Total
-        if power_a is not None and power_b is not None:
-            self.total_power_kw = power_a + power_b
-            self.total_energy.update(self.total_power_kw, now)
-        elif power_a is not None:
-            self.total_power_kw = power_a
-            self.total_energy.update(self.total_power_kw, now)
-        elif power_b is not None:
-            self.total_power_kw = power_b
-            self.total_energy.update(self.total_power_kw, now)
+        if self.pump_active:
+            if power_a is not None and power_b is not None:
+                self.total_power_kw = power_a + power_b
+                self.total_energy.update(self.total_power_kw, now)
+            elif power_a is not None:
+                self.total_power_kw = power_a
+                self.total_energy.update(self.total_power_kw, now)
+            elif power_b is not None:
+                self.total_power_kw = power_b
+                self.total_energy.update(self.total_power_kw, now)
+            else:
+                self.total_power_kw = None
         else:
-            self.total_power_kw = None
+            # At least one line has data (power_a_kw or power_b_kw is 0.0)
+            if self.power_a_kw is not None or self.power_b_kw is not None:
+                self.total_power_kw = 0.0
+            else:
+                self.total_power_kw = None
+            self.total_energy.reset_tracking()
+
+        # Gated temperature passthrough
+        if self.pump_active:
+            self.supply_temp_a_value = supply_a
+            self.supply_temp_b_value = supply_b
+            self.return_temp_value = return_temp
+        else:
+            self.supply_temp_a_value = None
+            self.supply_temp_b_value = None
+            self.return_temp_value = None
 
         self._notify()
 

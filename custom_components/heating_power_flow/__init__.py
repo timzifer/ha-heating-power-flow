@@ -12,11 +12,14 @@ from .const import (
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
     CONF_MODE,
+    CONF_PUMP_DELAY,
+    CONF_PUMP_ENTITY,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
     CONF_SUPPLY_TEMP_A,
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
+    DEFAULT_PUMP_DELAY,
     DOMAIN,
     MODE_SOURCE,
     PLATFORMS,
@@ -37,6 +40,12 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             config_entry, data=new_data, version=2
         )
 
+    if config_entry.version == 2:
+        # Pump fields are optional; existing entries simply won't have them.
+        hass.config_entries.async_update_entry(
+            config_entry, data={**config_entry.data}, version=3
+        )
+
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True
 
@@ -46,6 +55,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     config_type = entry.data.get(CONF_TYPE)
+    pump_entity = entry.data.get(CONF_PUMP_ENTITY)
+    pump_delay = entry.data.get(CONF_PUMP_DELAY, DEFAULT_PUMP_DELAY)
 
     if config_type == TYPE_DUAL_LINE:
         coordinator = DualLineFlowCoordinator(
@@ -55,6 +66,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             flow_entity_b=entry.data[CONF_FLOW_B],
             supply_temp_entity_b=entry.data[CONF_SUPPLY_TEMP_B],
             return_temp_entity=entry.data[CONF_RETURN_TEMP],
+            pump_entity=pump_entity,
+            pump_delay=pump_delay,
         )
     else:
         coordinator = StandardFlowCoordinator(
@@ -62,6 +75,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             flow_entity=entry.data[CONF_FLOW_SENSOR],
             supply_temp_entity=entry.data[CONF_SUPPLY_TEMP],
             return_temp_entity=entry.data[CONF_RETURN_TEMP],
+            pump_entity=pump_entity,
+            pump_delay=pump_delay,
         )
 
     coordinator.mode = entry.data.get(CONF_MODE, MODE_SOURCE)

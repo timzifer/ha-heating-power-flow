@@ -13,6 +13,11 @@ CONF_MODE = "mode"
 MODE_SOURCE = "source"
 MODE_SINK = "sink"
 
+# Pump entity configuration
+CONF_PUMP_ENTITY = "pump_entity"
+CONF_PUMP_DELAY = "pump_delay"
+DEFAULT_PUMP_DELAY = 30  # seconds
+
 # Standard triplet config keys
 CONF_NAME = "name"
 CONF_FLOW_SENSOR = "flow_sensor"
