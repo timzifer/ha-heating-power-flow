@@ -342,6 +342,8 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
     ) -> dict[str, Any]:
         """Handle options for standard triplet."""
         if user_input is not None:
+            if CONF_PUMP_ENTITY not in user_input:
+                user_input[CONF_PUMP_ENTITY] = None
             return self.async_create_entry(
                 title="", data={**self._options_data, **user_input}
             )
@@ -386,6 +388,8 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
     ) -> dict[str, Any]:
         """Handle options for dual-line."""
         if user_input is not None:
+            if CONF_PUMP_ENTITY not in user_input:
+                user_input[CONF_PUMP_ENTITY] = None
             return self.async_create_entry(
                 title="", data={**self._options_data, **user_input}
             )
