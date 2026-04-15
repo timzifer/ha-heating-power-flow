@@ -11,24 +11,37 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_DENSITY,
     CONF_FLOW_A,
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
+    CONF_MEDIUM,
     CONF_MODE,
     CONF_NAME,
     CONF_PUMP_DELAY,
     CONF_PUMP_ENTITY,
     CONF_RETURN_TEMP,
+    CONF_SPECIFIC_HEAT,
     CONF_SUPPLY_TEMP,
     CONF_SUPPLY_TEMP_A,
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
     DEFAULT_PUMP_DELAY,
     DOMAIN,
+    MEDIUM_CUSTOM,
+    MEDIUM_EG_20,
+    MEDIUM_EG_30,
+    MEDIUM_EG_40,
+    MEDIUM_PG_20,
+    MEDIUM_PG_30,
+    MEDIUM_PG_40,
+    MEDIUM_WATER,
     MODE_SINK,
     MODE_SOURCE,
     TYPE_DUAL_LINE,
     TYPE_STANDARD,
+    WATER_DENSITY_KG_L,
+    WATER_SPECIFIC_HEAT_KJ,
 )
 
 ENTITY_SELECTOR = selector.EntitySelector(
@@ -49,11 +62,47 @@ PUMP_DELAY_SELECTOR = selector.NumberSelector(
     )
 )
 
+MEDIUM_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[
+            selector.SelectOptionDict(value=MEDIUM_WATER, label="Water / Wasser"),
+            selector.SelectOptionDict(value=MEDIUM_EG_20, label="Ethylene Glycol 20%"),
+            selector.SelectOptionDict(value=MEDIUM_EG_30, label="Ethylene Glycol 30%"),
+            selector.SelectOptionDict(value=MEDIUM_EG_40, label="Ethylene Glycol 40%"),
+            selector.SelectOptionDict(value=MEDIUM_PG_20, label="Propylene Glycol 20%"),
+            selector.SelectOptionDict(value=MEDIUM_PG_30, label="Propylene Glycol 30%"),
+            selector.SelectOptionDict(value=MEDIUM_PG_40, label="Propylene Glycol 40%"),
+            selector.SelectOptionDict(value=MEDIUM_CUSTOM, label="Custom / Benutzerdefiniert"),
+        ],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+
+SPECIFIC_HEAT_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=1.0,
+        max=10.0,
+        step=0.001,
+        unit_of_measurement="kJ/(kg·K)",
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
+DENSITY_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=0.5,
+        max=2.0,
+        step=0.001,
+        unit_of_measurement="kg/L",
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
 
 class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Heating Power Flow."""
 
-    VERSION = 3
+    VERSION = 4
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -62,11 +111,15 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Handle the initial step: choose name and type."""
+        """Handle the initial step: choose name, type, and medium."""
         if user_input is not None:
             self._data[CONF_NAME] = user_input[CONF_NAME]
             self._data[CONF_TYPE] = user_input[CONF_TYPE]
             self._data[CONF_MODE] = user_input[CONF_MODE]
+            self._data[CONF_MEDIUM] = user_input[CONF_MEDIUM]
+
+            if user_input[CONF_MEDIUM] == MEDIUM_CUSTOM:
+                return await self.async_step_medium_custom()
 
             if user_input[CONF_TYPE] == TYPE_STANDARD:
                 return await self.async_step_standard()
@@ -107,6 +160,33 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
+                    vol.Required(CONF_MEDIUM, default=MEDIUM_WATER): MEDIUM_SELECTOR,
+                }
+            ),
+        )
+
+    async def async_step_medium_custom(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Handle custom medium properties input."""
+        if user_input is not None:
+            self._data[CONF_SPECIFIC_HEAT] = user_input[CONF_SPECIFIC_HEAT]
+            self._data[CONF_DENSITY] = user_input[CONF_DENSITY]
+
+            if self._data[CONF_TYPE] == TYPE_STANDARD:
+                return await self.async_step_standard()
+            return await self.async_step_dual_line()
+
+        return self.async_show_form(
+            step_id="medium_custom",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SPECIFIC_HEAT, default=WATER_SPECIFIC_HEAT_KJ
+                    ): SPECIFIC_HEAT_SELECTOR,
+                    vol.Required(
+                        CONF_DENSITY, default=WATER_DENSITY_KG_L
+                    ): DENSITY_SELECTOR,
                 }
             ),
         )
@@ -183,14 +263,20 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Handle mode selection as the first options step."""
+        """Handle mode and medium selection as the first options step."""
         if user_input is not None:
             self._options_data[CONF_MODE] = user_input[CONF_MODE]
+            self._options_data[CONF_MEDIUM] = user_input[CONF_MEDIUM]
+
+            if user_input[CONF_MEDIUM] == MEDIUM_CUSTOM:
+                return await self.async_step_medium_custom()
+
             if self._config_entry.data.get(CONF_TYPE) == TYPE_DUAL_LINE:
                 return await self.async_step_dual_line()
             return await self.async_step_standard()
 
         current_mode = self._config_entry.data.get(CONF_MODE, MODE_SOURCE)
+        current_medium = self._config_entry.data.get(CONF_MEDIUM, MEDIUM_WATER)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -212,6 +298,41 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
+                    vol.Required(
+                        CONF_MEDIUM, default=current_medium
+                    ): MEDIUM_SELECTOR,
+                }
+            ),
+        )
+
+    async def async_step_medium_custom(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Handle custom medium properties input in options flow."""
+        if user_input is not None:
+            self._options_data[CONF_SPECIFIC_HEAT] = user_input[CONF_SPECIFIC_HEAT]
+            self._options_data[CONF_DENSITY] = user_input[CONF_DENSITY]
+
+            if self._config_entry.data.get(CONF_TYPE) == TYPE_DUAL_LINE:
+                return await self.async_step_dual_line()
+            return await self.async_step_standard()
+
+        current_cp = self._config_entry.data.get(
+            CONF_SPECIFIC_HEAT, WATER_SPECIFIC_HEAT_KJ
+        )
+        current_density = self._config_entry.data.get(
+            CONF_DENSITY, WATER_DENSITY_KG_L
+        )
+        return self.async_show_form(
+            step_id="medium_custom",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SPECIFIC_HEAT, default=current_cp
+                    ): SPECIFIC_HEAT_SELECTOR,
+                    vol.Required(
+                        CONF_DENSITY, default=current_density
+                    ): DENSITY_SELECTOR,
                 }
             ),
         )

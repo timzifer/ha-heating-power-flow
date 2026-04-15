@@ -18,6 +18,32 @@ CONF_PUMP_ENTITY = "pump_entity"
 CONF_PUMP_DELAY = "pump_delay"
 DEFAULT_PUMP_DELAY = 30  # seconds
 
+# Medium configuration
+CONF_MEDIUM = "medium"
+CONF_SPECIFIC_HEAT = "specific_heat"
+CONF_DENSITY = "density"
+
+# Medium preset keys
+MEDIUM_WATER = "water"
+MEDIUM_EG_20 = "ethylene_glycol_20"
+MEDIUM_EG_30 = "ethylene_glycol_30"
+MEDIUM_EG_40 = "ethylene_glycol_40"
+MEDIUM_PG_20 = "propylene_glycol_20"
+MEDIUM_PG_30 = "propylene_glycol_30"
+MEDIUM_PG_40 = "propylene_glycol_40"
+MEDIUM_CUSTOM = "custom"
+
+# Medium presets: (specific_heat kJ/(kg·K), density kg/L) at ~40 °C
+MEDIUM_PRESETS: dict[str, tuple[float, float]] = {
+    MEDIUM_WATER: (4.186, 1.0),
+    MEDIUM_EG_20: (3.86, 1.025),
+    MEDIUM_EG_30: (3.56, 1.040),
+    MEDIUM_EG_40: (3.26, 1.054),
+    MEDIUM_PG_20: (3.92, 1.017),
+    MEDIUM_PG_30: (3.68, 1.026),
+    MEDIUM_PG_40: (3.43, 1.034),
+}
+
 # Standard triplet config keys
 CONF_NAME = "name"
 CONF_FLOW_SENSOR = "flow_sensor"
@@ -31,14 +57,9 @@ CONF_FLOW_B = "flow_sensor_b"
 CONF_SUPPLY_TEMP_B = "supply_temp_b"
 # CONF_RETURN_TEMP is shared
 
-# Physics constants
+# Default physics constants (water)
 WATER_SPECIFIC_HEAT_KJ = 4.186  # kJ/(kg·K)
 WATER_DENSITY_KG_L = 1.0  # kg/L (approximation at ~20-60°C)
-
-# Power factor: flow(L/min) * ΔT(K) * factor = Power(kW)
-# P(kW) = flow(L/min) * ΔT(K) * ρ(kg/L) * cp(kJ/(kg·K)) / 60(s/min)
-# P(kW) = flow * ΔT * 1.0 * 4.186 / 60 = flow * ΔT * 0.069767
-POWER_FACTOR_L_MIN = WATER_DENSITY_KG_L * WATER_SPECIFIC_HEAT_KJ / 60.0
 
 # Flow unit conversion factors (to L/min)
 FLOW_UNIT_CONVERSIONS: dict[str, float] = {

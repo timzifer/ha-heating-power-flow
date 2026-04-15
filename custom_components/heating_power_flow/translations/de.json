@@ -7,12 +7,26 @@
         "data": {
           "name": "Name",
           "config_type": "Konfigurationstyp",
-          "mode": "Kreislauf-Modus"
+          "mode": "Kreislauf-Modus",
+          "medium": "Wärmeträgermedium"
         },
         "data_description": {
           "name": "Name für diesen Energiedurchfluss-Monitor",
           "config_type": "Standard: Ein Durchfluss + Vorlauf-/Rücklauftemperatur. Dual-Line: Zwei Leitungen mit gemeinsamer Rücklauftemperatur.",
-          "mode": "Quelle: Erzeugt thermische Energie (z.B. Wärmepumpe, Kessel). Senke: Verbraucht thermische Energie (z.B. Heizkörperkreis, Fußbodenheizung, Warmwasser)."
+          "mode": "Quelle: Erzeugt thermische Energie (z.B. Wärmepumpe, Kessel). Senke: Verbraucht thermische Energie (z.B. Heizkörperkreis, Fußbodenheizung, Warmwasser).",
+          "medium": "Wärmeträgerflüssigkeit im Kreislauf. Wähle 'Benutzerdefiniert' um spezifische Wärmekapazität und Dichte manuell einzugeben."
+        }
+      },
+      "medium_custom": {
+        "title": "Benutzerdefinierte Mediumeigenschaften",
+        "description": "Materialkonstanten für das Wärmeträgermedium eingeben.",
+        "data": {
+          "specific_heat": "Spezifische Wärmekapazität",
+          "density": "Dichte"
+        },
+        "data_description": {
+          "specific_heat": "Spezifische Wärmekapazität der Flüssigkeit in kJ/(kg·K). Wasser: 4,186, typische Glykol-Gemische: 3,2–3,9.",
+          "density": "Dichte der Flüssigkeit in kg/L. Wasser: 1,0, typische Glykol-Gemische: 1,02–1,06."
         }
       },
       "standard": {
@@ -60,12 +74,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "Kreislauf-Modus",
+        "title": "Kreislauf-Modus & Medium",
         "data": {
-          "mode": "Kreislauf-Modus"
+          "mode": "Kreislauf-Modus",
+          "medium": "Wärmeträgermedium"
         },
         "data_description": {
-          "mode": "Quelle: Erzeugt thermische Energie. Senke: Verbraucht thermische Energie."
+          "mode": "Quelle: Erzeugt thermische Energie. Senke: Verbraucht thermische Energie.",
+          "medium": "Wärmeträgerflüssigkeit im Kreislauf. Wähle 'Benutzerdefiniert' um spezifische Wärmekapazität und Dichte manuell einzugeben."
+        }
+      },
+      "medium_custom": {
+        "title": "Benutzerdefinierte Mediumeigenschaften",
+        "data": {
+          "specific_heat": "Spezifische Wärmekapazität",
+          "density": "Dichte"
+        },
+        "data_description": {
+          "specific_heat": "Spezifische Wärmekapazität der Flüssigkeit in kJ/(kg·K).",
+          "density": "Dichte der Flüssigkeit in kg/L."
         }
       },
       "standard": {

@@ -7,12 +7,26 @@
         "data": {
           "name": "Name",
           "config_type": "Configuration type",
-          "mode": "Circuit mode"
+          "mode": "Circuit mode",
+          "medium": "Heat transfer medium"
         },
         "data_description": {
           "name": "Name for this energy flow monitor",
           "config_type": "Standard: one flow + supply/return temperature. Dual-Line: two lines with shared return temperature.",
-          "mode": "Source: produces thermal energy (e.g. heat pump, boiler). Sink: consumes thermal energy (e.g. radiator circuit, floor heating, hot water)."
+          "mode": "Source: produces thermal energy (e.g. heat pump, boiler). Sink: consumes thermal energy (e.g. radiator circuit, floor heating, hot water).",
+          "medium": "Heat transfer fluid in the circuit. Choose 'Custom' to enter specific heat capacity and density manually."
+        }
+      },
+      "medium_custom": {
+        "title": "Custom Medium Properties",
+        "description": "Enter the material constants for the heat transfer fluid.",
+        "data": {
+          "specific_heat": "Specific heat capacity",
+          "density": "Density"
+        },
+        "data_description": {
+          "specific_heat": "Specific heat capacity of the fluid in kJ/(kg·K). Water: 4.186, typical glycol mixtures: 3.2–3.9.",
+          "density": "Density of the fluid in kg/L. Water: 1.0, typical glycol mixtures: 1.02–1.06."
         }
       },
       "standard": {
@@ -60,12 +74,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "Circuit Mode",
+        "title": "Circuit Mode & Medium",
         "data": {
-          "mode": "Circuit mode"
+          "mode": "Circuit mode",
+          "medium": "Heat transfer medium"
         },
         "data_description": {
-          "mode": "Source: produces thermal energy. Sink: consumes thermal energy."
+          "mode": "Source: produces thermal energy. Sink: consumes thermal energy.",
+          "medium": "Heat transfer fluid in the circuit. Choose 'Custom' to enter specific heat capacity and density manually."
+        }
+      },
+      "medium_custom": {
+        "title": "Custom Medium Properties",
+        "data": {
+          "specific_heat": "Specific heat capacity",
+          "density": "Density"
+        },
+        "data_description": {
+          "specific_heat": "Specific heat capacity of the fluid in kJ/(kg·K).",
+          "density": "Density of the fluid in kg/L."
         }
       },
       "standard": {

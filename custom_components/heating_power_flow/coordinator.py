@@ -10,7 +10,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 
-from .const import FLOW_UNIT_CONVERSIONS, POWER_FACTOR_L_MIN
+from .const import FLOW_UNIT_CONVERSIONS, WATER_DENSITY_KG_L, WATER_SPECIFIC_HEAT_KJ
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,12 +42,23 @@ def _convert_flow_to_l_min(flow_value: float, unit: str | None) -> float:
     return flow_value * factor
 
 
-def calculate_power_kw(flow_l_min: float, delta_t: float) -> float:
+def compute_power_factor(
+    specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
+    density: float = WATER_DENSITY_KG_L,
+) -> float:
+    """Compute the power factor from medium properties.
+
+    factor = ρ(kg/L) × cp(kJ/(kg·K)) / 60(s/min)
+    """
+    return density * specific_heat / 60.0
+
+
+def calculate_power_kw(flow_l_min: float, delta_t: float, power_factor: float) -> float:
     """Calculate thermal power in kW.
 
-    P(kW) = flow(L/min) × ΔT(K) × ρ(kg/L) × cp(kJ/(kg·K)) / 60(s/min)
+    P(kW) = flow(L/min) × ΔT(K) × power_factor
     """
-    return flow_l_min * delta_t * POWER_FACTOR_L_MIN
+    return flow_l_min * delta_t * power_factor
 
 
 class EnergyAccumulator:
@@ -200,12 +211,16 @@ class StandardFlowCoordinator(PumpGatingMixin):
         return_temp_entity: str,
         pump_entity: str | None = None,
         pump_delay: int = 30,
+        specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
+        density: float = WATER_DENSITY_KG_L,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
         self.flow_entity = flow_entity
         self.supply_temp_entity = supply_temp_entity
         self.return_temp_entity = return_temp_entity
+
+        self._power_factor = compute_power_factor(specific_heat, density)
 
         self.power_kw: float | None = None
         self.delta_t: float | None = None
@@ -277,7 +292,7 @@ class StandardFlowCoordinator(PumpGatingMixin):
         self.delta_t = supply_temp - return_temp
 
         if self.pump_active:
-            self.power_kw = calculate_power_kw(self.flow_rate_l_min, self.delta_t)
+            self.power_kw = calculate_power_kw(self.flow_rate_l_min, self.delta_t, self._power_factor)
             self.supply_temp_value = supply_temp
             self.return_temp_value = return_temp
             now = datetime.now(timezone.utc)
@@ -309,6 +324,8 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         return_temp_entity: str,
         pump_entity: str | None = None,
         pump_delay: int = 30,
+        specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
+        density: float = WATER_DENSITY_KG_L,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -317,6 +334,8 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         self.flow_entity_b = flow_entity_b
         self.supply_temp_entity_b = supply_temp_entity_b
         self.return_temp_entity = return_temp_entity
+
+        self._power_factor = compute_power_factor(specific_heat, density)
 
         # Line A values
         self.power_a_kw: float | None = None
@@ -401,7 +420,7 @@ class DualLineFlowCoordinator(PumpGatingMixin):
             flow_a_l_min = _convert_flow_to_l_min(flow_a_raw, flow_unit_a)
             self.delta_t_a = supply_a - return_temp
             if self.pump_active:
-                power_a = calculate_power_kw(flow_a_l_min, self.delta_t_a)
+                power_a = calculate_power_kw(flow_a_l_min, self.delta_t_a, self._power_factor)
                 self.power_a_kw = power_a
                 self.energy_a.update(power_a, now)
             else:
@@ -417,7 +436,7 @@ class DualLineFlowCoordinator(PumpGatingMixin):
             flow_b_l_min = _convert_flow_to_l_min(flow_b_raw, flow_unit_b)
             self.delta_t_b = supply_b - return_temp
             if self.pump_active:
-                power_b = calculate_power_kw(flow_b_l_min, self.delta_t_b)
+                power_b = calculate_power_kw(flow_b_l_min, self.delta_t_b, self._power_factor)
                 self.power_b_kw = power_b
                 self.energy_b.update(power_b, now)
             else:
