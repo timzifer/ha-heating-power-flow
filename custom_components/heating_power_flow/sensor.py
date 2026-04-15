@@ -74,6 +74,7 @@ def _create_standard_entities(
         SystemPowerSensor(coordinator, entry, name, "power_kw"),
         HeatingEnergySensor(coordinator, entry, name, "", "energy"),
         CoolingEnergySensor(coordinator, entry, name, "", "energy"),
+        SystemEnergySensor(coordinator, entry, name, "energy"),
         DeltaTSensor(coordinator, entry, name, "", "delta_t"),
         FlowRateSensor(coordinator, entry, name),
         CircuitModeSensor(coordinator, entry, name),
@@ -105,11 +106,13 @@ def _create_dual_line_entities(
         DualLinePowerSensor(coordinator, entry, name, "A", "power_a_kw"),
         DualLineHeatingEnergySensor(coordinator, entry, name, "A", "energy_a"),
         DualLineCoolingEnergySensor(coordinator, entry, name, "A", "energy_a"),
+        DualLineSystemEnergySensor(coordinator, entry, name, "A", "energy_a"),
         DualLineDeltaTSensor(coordinator, entry, name, "A", "delta_t_a"),
         # Line B
         DualLinePowerSensor(coordinator, entry, name, "B", "power_b_kw"),
         DualLineHeatingEnergySensor(coordinator, entry, name, "B", "energy_b"),
         DualLineCoolingEnergySensor(coordinator, entry, name, "B", "energy_b"),
+        DualLineSystemEnergySensor(coordinator, entry, name, "B", "energy_b"),
         DualLineDeltaTSensor(coordinator, entry, name, "B", "delta_t_b"),
         # Totals
         DualLinePowerSensor(coordinator, entry, name, "Total", "total_power_kw"),
@@ -117,6 +120,9 @@ def _create_dual_line_entities(
             coordinator, entry, name, "Total", "total_energy"
         ),
         DualLineCoolingEnergySensor(
+            coordinator, entry, name, "Total", "total_energy"
+        ),
+        DualLineSystemEnergySensor(
             coordinator, entry, name, "Total", "total_energy"
         ),
         SystemPowerSensor(coordinator, entry, name, "total_power_kw"),
@@ -479,6 +485,56 @@ class SystemPowerSensor(HeatingPowerFlowBaseSensor):
         self.async_write_ha_state()
 
 
+class SystemEnergySensor(HeatingPowerFlowBaseSensor):
+    """System-perspective net energy sensor.
+
+    Computes net energy balance as heating_energy - cooling_energy,
+    with sign applied based on source/sink mode.
+    """
+
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 3
+    _attr_icon = "mdi:home-lightning-bolt"
+
+    def __init__(
+        self,
+        coordinator: StandardFlowCoordinator | DualLineFlowCoordinator,
+        entry: ConfigEntry,
+        name: str,
+        energy_attr: str,
+    ) -> None:
+        """Initialize the system energy sensor."""
+        super().__init__(coordinator, entry, name)
+        self._attr_unique_id = f"{entry.entry_id}_system_energy"
+        self._attr_name = "System Energy"
+        self._energy_attr = energy_attr
+        self._sign = -1.0 if entry.data.get(CONF_MODE) == MODE_SINK else 1.0
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the net energy balance."""
+        accumulator = getattr(self._coordinator, self._energy_attr, None)
+        if accumulator is None:
+            return None
+        net = accumulator.heating_energy_kwh - accumulator.cooling_energy_kwh
+        return net * self._sign
+
+    async def async_added_to_hass(self) -> None:
+        """Register callback when added to hass."""
+        self._coordinator.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callback when removed from hass."""
+        self._coordinator.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle coordinator updates."""
+        self.async_write_ha_state()
+
+
 class GatedTemperatureSensor(HeatingPowerFlowBaseSensor):
     """Temperature passthrough sensor, gated by pump state."""
 
@@ -674,6 +730,53 @@ class DualLineCoolingEnergySensor(HeatingPowerFlowBaseSensor, RestoreEntity):
                     accumulator.restore(accumulator.heating_energy_kwh, restored)
             except (ValueError, TypeError):
                 pass
+        self._coordinator.register_callback(self._handle_update)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Remove callback when removed from hass."""
+        self._coordinator.remove_callback(self._handle_update)
+
+    @callback
+    def _handle_update(self) -> None:
+        """Handle coordinator updates."""
+        self.async_write_ha_state()
+
+
+class DualLineSystemEnergySensor(HeatingPowerFlowBaseSensor):
+    """System-perspective net energy sensor for dual-line configuration."""
+
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 3
+    _attr_icon = "mdi:home-lightning-bolt"
+
+    def __init__(
+        self,
+        coordinator: DualLineFlowCoordinator,
+        entry: ConfigEntry,
+        name: str,
+        line: str,
+        energy_attr: str,
+    ) -> None:
+        """Initialize the dual-line system energy sensor."""
+        super().__init__(coordinator, entry, name)
+        self._attr_unique_id = f"{entry.entry_id}_system_energy_{line.lower()}"
+        self._attr_name = f"System Energy {line}"
+        self._energy_attr = energy_attr
+        self._sign = -1.0 if entry.data.get(CONF_MODE) == MODE_SINK else 1.0
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the net energy balance for this line."""
+        accumulator = getattr(self._coordinator, self._energy_attr, None)
+        if accumulator is None:
+            return None
+        net = accumulator.heating_energy_kwh - accumulator.cooling_energy_kwh
+        return net * self._sign
+
+    async def async_added_to_hass(self) -> None:
+        """Register callback when added to hass."""
         self._coordinator.register_callback(self._handle_update)
 
     async def async_will_remove_from_hass(self) -> None:
