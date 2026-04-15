@@ -129,6 +129,10 @@ async def _async_update_listener(
     """Handle options update."""
     if entry.options:
         new_data = {**entry.data, **entry.options}
+        # Remove optional keys that were explicitly cleared (set to None)
+        for key in (CONF_PUMP_ENTITY,):
+            if key in new_data and new_data[key] is None:
+                del new_data[key]
         hass.config_entries.async_update_entry(entry, data=new_data, options={})
     await hass.config_entries.async_reload(entry.entry_id)
 
