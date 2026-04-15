@@ -92,3 +92,9 @@ SENSOR_TOTAL_HEATING_ENERGY = "total_heating_energy"
 SENSOR_TOTAL_COOLING_ENERGY = "total_cooling_energy"
 SENSOR_DELTA_T_A = "delta_t_a"
 SENSOR_DELTA_T_B = "delta_t_b"
+
+# System-perspective sensors (net energy balance)
+SENSOR_SYSTEM_ENERGY = "system_energy"
+SENSOR_SYSTEM_ENERGY_A = "system_energy_a"
+SENSOR_SYSTEM_ENERGY_B = "system_energy_b"
+SENSOR_TOTAL_SYSTEM_ENERGY = "total_system_energy"
