@@ -11,7 +11,7 @@ from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 
 from .const import (
-    DEFAULT_EMA_SAMPLES,
+    DEFAULT_EMA_ALPHA,
     FLOW_UNIT_CONVERSIONS,
     WATER_DENSITY_KG_L,
     WATER_SPECIFIC_HEAT_KJ,
@@ -45,17 +45,6 @@ def _convert_flow_to_l_min(flow_value: float, unit: str | None) -> float:
         return flow_value
     factor = FLOW_UNIT_CONVERSIONS.get(unit, 1.0)
     return flow_value * factor
-
-
-def ema_alpha_from_samples(samples: int) -> float:
-    """Convert EMA sample count to smoothing alpha.
-
-    Uses the standard span formula: alpha = 2 / (N + 1).
-    samples=1 returns 1.0 (no smoothing, raw values pass through).
-    """
-    if samples <= 1:
-        return 1.0
-    return 2.0 / (samples + 1)
 
 
 class ExponentialMovingAverage:
@@ -259,7 +248,7 @@ class StandardFlowCoordinator(PumpGatingMixin):
         pump_delay: int = 30,
         specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
         density: float = WATER_DENSITY_KG_L,
-        ema_samples: int = DEFAULT_EMA_SAMPLES,
+        ema_alpha: float = DEFAULT_EMA_ALPHA,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -279,10 +268,9 @@ class StandardFlowCoordinator(PumpGatingMixin):
         self.return_temp_value: float | None = None
 
         # EMA filters for input sensors
-        alpha = ema_alpha_from_samples(ema_samples)
-        self._ema_flow = ExponentialMovingAverage(alpha)
-        self._ema_supply = ExponentialMovingAverage(alpha)
-        self._ema_return = ExponentialMovingAverage(alpha)
+        self._ema_flow = ExponentialMovingAverage(ema_alpha)
+        self._ema_supply = ExponentialMovingAverage(ema_alpha)
+        self._ema_return = ExponentialMovingAverage(ema_alpha)
         self._last_pump_active: bool | None = None
 
         self._listeners: list[Any] = []
@@ -397,7 +385,7 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         pump_delay: int = 30,
         specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
         density: float = WATER_DENSITY_KG_L,
-        ema_samples: int = DEFAULT_EMA_SAMPLES,
+        ema_alpha: float = DEFAULT_EMA_ALPHA,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -429,12 +417,11 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         self.return_temp_value: float | None = None
 
         # EMA filters for input sensors
-        alpha = ema_alpha_from_samples(ema_samples)
-        self._ema_flow_a = ExponentialMovingAverage(alpha)
-        self._ema_supply_a = ExponentialMovingAverage(alpha)
-        self._ema_flow_b = ExponentialMovingAverage(alpha)
-        self._ema_supply_b = ExponentialMovingAverage(alpha)
-        self._ema_return = ExponentialMovingAverage(alpha)
+        self._ema_flow_a = ExponentialMovingAverage(ema_alpha)
+        self._ema_supply_a = ExponentialMovingAverage(ema_alpha)
+        self._ema_flow_b = ExponentialMovingAverage(ema_alpha)
+        self._ema_supply_b = ExponentialMovingAverage(ema_alpha)
+        self._ema_return = ExponentialMovingAverage(ema_alpha)
         self._last_pump_active: bool | None = None
 
         self._listeners: list[Any] = []

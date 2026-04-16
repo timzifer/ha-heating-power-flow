@@ -38,7 +38,7 @@
           "return_temp": "Return temperature (Rücklauf)",
           "pump_entity": "Pump entity (optional)",
           "pump_delay": "Pump delay (seconds)",
-          "ema_samples": "EMA smoothing samples"
+          "ema_alpha": "EMA smoothing factor (α)"
         },
         "data_description": {
           "flow_sensor": "Sensor measuring the volumetric flow rate (e.g. L/min, m³/h)",
@@ -46,7 +46,7 @@
           "return_temp": "Temperature sensor on the return line",
           "pump_entity": "Entity indicating whether the circulation pump is running (e.g. binary_sensor, switch). Leave empty to disable pump gating.",
           "pump_delay": "Seconds to wait after pump turns on before values are considered valid.",
-          "ema_samples": "Number of samples for Exponential Moving Average smoothing on input sensors. 1 = no smoothing (raw values), higher values = stronger smoothing. Recommended: 3–10."
+          "ema_alpha": "Smoothing factor (α) for Exponential Moving Average on input sensors. 1.0 = no smoothing (raw values), lower values = stronger smoothing. Recommended: 0.1–0.5."
         }
       },
       "dual_line": {
@@ -60,7 +60,7 @@
           "return_temp": "Common return temperature (Rücklauf)",
           "pump_entity": "Pump entity (optional)",
           "pump_delay": "Pump delay (seconds)",
-          "ema_samples": "EMA smoothing samples"
+          "ema_alpha": "EMA smoothing factor (α)"
         },
         "data_description": {
           "supply_temp_a": "Temperature sensor on supply line A",
@@ -70,7 +70,7 @@
           "return_temp": "Shared return temperature sensor",
           "pump_entity": "Entity indicating whether the circulation pump is running (e.g. binary_sensor, switch). Leave empty to disable pump gating.",
           "pump_delay": "Seconds to wait after pump turns on before values are considered valid.",
-          "ema_samples": "Number of samples for Exponential Moving Average smoothing on input sensors. 1 = no smoothing (raw values), higher values = stronger smoothing. Recommended: 3–10."
+          "ema_alpha": "Smoothing factor (α) for Exponential Moving Average on input sensors. 1.0 = no smoothing (raw values), lower values = stronger smoothing. Recommended: 0.1–0.5."
         }
       }
     }
@@ -107,10 +107,10 @@
           "return_temp": "Return temperature (Rücklauf)",
           "pump_entity": "Pump entity (optional)",
           "pump_delay": "Pump delay (seconds)",
-          "ema_samples": "EMA smoothing samples"
+          "ema_alpha": "EMA smoothing factor (α)"
         },
         "data_description": {
-          "ema_samples": "Number of samples for Exponential Moving Average smoothing on input sensors. 1 = no smoothing (raw values), higher values = stronger smoothing. Recommended: 3–10."
+          "ema_alpha": "Smoothing factor (α) for Exponential Moving Average on input sensors. 1.0 = no smoothing (raw values), lower values = stronger smoothing. Recommended: 0.1–0.5."
         }
       },
       "dual_line": {
@@ -123,10 +123,10 @@
           "return_temp": "Common return temperature (Rücklauf)",
           "pump_entity": "Pump entity (optional)",
           "pump_delay": "Pump delay (seconds)",
-          "ema_samples": "EMA smoothing samples"
+          "ema_alpha": "EMA smoothing factor (α)"
         },
         "data_description": {
-          "ema_samples": "Number of samples for Exponential Moving Average smoothing on input sensors. 1 = no smoothing (raw values), higher values = stronger smoothing. Recommended: 3–10."
+          "ema_alpha": "Smoothing factor (α) for Exponential Moving Average on input sensors. 1.0 = no smoothing (raw values), lower values = stronger smoothing. Recommended: 0.1–0.5."
         }
       }
     }
