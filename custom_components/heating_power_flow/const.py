@@ -18,6 +18,10 @@ CONF_PUMP_ENTITY = "pump_entity"
 CONF_PUMP_DELAY = "pump_delay"
 DEFAULT_PUMP_DELAY = 30  # seconds
 
+# Exponential Moving Average configuration
+CONF_EMA_SAMPLES = "ema_samples"
+DEFAULT_EMA_SAMPLES = 1  # 1 = no smoothing (raw values pass through)
+
 # Medium configuration
 CONF_MEDIUM = "medium"
 CONF_SPECIFIC_HEAT = "specific_heat"

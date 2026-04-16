@@ -10,7 +10,12 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 
-from .const import FLOW_UNIT_CONVERSIONS, WATER_DENSITY_KG_L, WATER_SPECIFIC_HEAT_KJ
+from .const import (
+    DEFAULT_EMA_SAMPLES,
+    FLOW_UNIT_CONVERSIONS,
+    WATER_DENSITY_KG_L,
+    WATER_SPECIFIC_HEAT_KJ,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +45,47 @@ def _convert_flow_to_l_min(flow_value: float, unit: str | None) -> float:
         return flow_value
     factor = FLOW_UNIT_CONVERSIONS.get(unit, 1.0)
     return flow_value * factor
+
+
+def ema_alpha_from_samples(samples: int) -> float:
+    """Convert EMA sample count to smoothing alpha.
+
+    Uses the standard span formula: alpha = 2 / (N + 1).
+    samples=1 returns 1.0 (no smoothing, raw values pass through).
+    """
+    if samples <= 1:
+        return 1.0
+    return 2.0 / (samples + 1)
+
+
+class ExponentialMovingAverage:
+    """Exponential Moving Average filter for sensor values."""
+
+    def __init__(self, alpha: float = 1.0) -> None:
+        """Initialize the EMA filter.
+
+        Args:
+            alpha: Smoothing factor (0..1]. 1.0 = no smoothing.
+        """
+        self._alpha = alpha
+        self._value: float | None = None
+
+    @property
+    def enabled(self) -> bool:
+        """Return True if smoothing is active (alpha < 1.0)."""
+        return self._alpha < 1.0
+
+    def update(self, value: float) -> float:
+        """Feed a new raw value and return the smoothed result."""
+        if self._value is None or not self.enabled:
+            self._value = value
+        else:
+            self._value = self._alpha * value + (1.0 - self._alpha) * self._value
+        return self._value
+
+    def reset(self) -> None:
+        """Clear internal state so the next update starts fresh."""
+        self._value = None
 
 
 def compute_power_factor(
@@ -213,6 +259,7 @@ class StandardFlowCoordinator(PumpGatingMixin):
         pump_delay: int = 30,
         specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
         density: float = WATER_DENSITY_KG_L,
+        ema_samples: int = DEFAULT_EMA_SAMPLES,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -230,6 +277,13 @@ class StandardFlowCoordinator(PumpGatingMixin):
         # Gated temperature passthrough values
         self.supply_temp_value: float | None = None
         self.return_temp_value: float | None = None
+
+        # EMA filters for input sensors
+        alpha = ema_alpha_from_samples(ema_samples)
+        self._ema_flow = ExponentialMovingAverage(alpha)
+        self._ema_supply = ExponentialMovingAverage(alpha)
+        self._ema_return = ExponentialMovingAverage(alpha)
+        self._last_pump_active: bool | None = None
 
         self._listeners: list[Any] = []
         self._update_callbacks: list[callback] = []
@@ -271,6 +325,12 @@ class StandardFlowCoordinator(PumpGatingMixin):
         """Handle state changes from source entities."""
         self._calculate()
 
+    def _reset_ema(self) -> None:
+        """Reset all EMA filters."""
+        self._ema_flow.reset()
+        self._ema_supply.reset()
+        self._ema_return.reset()
+
     def _calculate(self) -> None:
         """Recalculate all derived values."""
         flow_raw = _get_numeric_state(self.hass, self.flow_entity)
@@ -278,6 +338,7 @@ class StandardFlowCoordinator(PumpGatingMixin):
         return_temp = _get_numeric_state(self.hass, self.return_temp_entity)
 
         if flow_raw is None or supply_temp is None or return_temp is None:
+            self._reset_ema()
             self.power_kw = None
             self.delta_t = None
             self.flow_rate_l_min = None
@@ -285,6 +346,16 @@ class StandardFlowCoordinator(PumpGatingMixin):
             self.return_temp_value = None
             self._notify()
             return
+
+        # Reset EMA on pump state transitions to avoid stale trailing values
+        if self._last_pump_active is not None and self.pump_active != self._last_pump_active:
+            self._reset_ema()
+        self._last_pump_active = self.pump_active
+
+        # Apply EMA smoothing to raw sensor inputs
+        flow_raw = self._ema_flow.update(flow_raw)
+        supply_temp = self._ema_supply.update(supply_temp)
+        return_temp = self._ema_return.update(return_temp)
 
         # Delta T and flow rate always pass through
         flow_unit = _get_flow_unit(self.hass, self.flow_entity)
@@ -326,6 +397,7 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         pump_delay: int = 30,
         specific_heat: float = WATER_SPECIFIC_HEAT_KJ,
         density: float = WATER_DENSITY_KG_L,
+        ema_samples: int = DEFAULT_EMA_SAMPLES,
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -355,6 +427,15 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         self.supply_temp_a_value: float | None = None
         self.supply_temp_b_value: float | None = None
         self.return_temp_value: float | None = None
+
+        # EMA filters for input sensors
+        alpha = ema_alpha_from_samples(ema_samples)
+        self._ema_flow_a = ExponentialMovingAverage(alpha)
+        self._ema_supply_a = ExponentialMovingAverage(alpha)
+        self._ema_flow_b = ExponentialMovingAverage(alpha)
+        self._ema_supply_b = ExponentialMovingAverage(alpha)
+        self._ema_return = ExponentialMovingAverage(alpha)
+        self._last_pump_active: bool | None = None
 
         self._listeners: list[Any] = []
         self._update_callbacks: list[callback] = []
@@ -398,6 +479,14 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         """Handle state changes from source entities."""
         self._calculate()
 
+    def _reset_ema(self) -> None:
+        """Reset all EMA filters."""
+        self._ema_flow_a.reset()
+        self._ema_supply_a.reset()
+        self._ema_flow_b.reset()
+        self._ema_supply_b.reset()
+        self._ema_return.reset()
+
     def _calculate(self) -> None:
         """Recalculate all derived values."""
         return_temp = _get_numeric_state(self.hass, self.return_temp_entity)
@@ -410,12 +499,25 @@ class DualLineFlowCoordinator(PumpGatingMixin):
         flow_b_raw = _get_numeric_state(self.hass, self.flow_entity_b)
         supply_b = _get_numeric_state(self.hass, self.supply_temp_entity_b)
 
+        # Reset EMA on pump state transitions to avoid stale trailing values
+        if self._last_pump_active is not None and self.pump_active != self._last_pump_active:
+            self._reset_ema()
+        self._last_pump_active = self.pump_active
+
+        # Apply EMA to return temp (shared across lines)
+        if return_temp is not None:
+            return_temp = self._ema_return.update(return_temp)
+        else:
+            self._ema_return.reset()
+
         now = datetime.now(timezone.utc)
         power_a = None
         power_b = None
 
         # Calculate Line A
         if flow_a_raw is not None and supply_a is not None and return_temp is not None:
+            flow_a_raw = self._ema_flow_a.update(flow_a_raw)
+            supply_a = self._ema_supply_a.update(supply_a)
             flow_unit_a = _get_flow_unit(self.hass, self.flow_entity_a)
             flow_a_l_min = _convert_flow_to_l_min(flow_a_raw, flow_unit_a)
             self.delta_t_a = supply_a - return_temp
@@ -427,11 +529,15 @@ class DualLineFlowCoordinator(PumpGatingMixin):
                 self.power_a_kw = 0.0
                 self.energy_a.reset_tracking()
         else:
+            self._ema_flow_a.reset()
+            self._ema_supply_a.reset()
             self.power_a_kw = None
             self.delta_t_a = None
 
         # Calculate Line B
         if flow_b_raw is not None and supply_b is not None and return_temp is not None:
+            flow_b_raw = self._ema_flow_b.update(flow_b_raw)
+            supply_b = self._ema_supply_b.update(supply_b)
             flow_unit_b = _get_flow_unit(self.hass, self.flow_entity_b)
             flow_b_l_min = _convert_flow_to_l_min(flow_b_raw, flow_unit_b)
             self.delta_t_b = supply_b - return_temp
@@ -443,6 +549,8 @@ class DualLineFlowCoordinator(PumpGatingMixin):
                 self.power_b_kw = 0.0
                 self.energy_b.reset_tracking()
         else:
+            self._ema_flow_b.reset()
+            self._ema_supply_b.reset()
             self.power_b_kw = None
             self.delta_t_b = None
 
