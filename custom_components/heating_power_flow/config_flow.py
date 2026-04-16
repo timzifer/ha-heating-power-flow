@@ -370,7 +370,8 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
         current_pump = current.get(CONF_PUMP_ENTITY)
         if current_pump:
             pump_schema[vol.Optional(
-                CONF_PUMP_ENTITY, default=current_pump
+                CONF_PUMP_ENTITY,
+                description={"suggested_value": current_pump},
             )] = PUMP_ENTITY_SELECTOR
         else:
             pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = PUMP_ENTITY_SELECTOR
@@ -420,7 +421,8 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
         current_pump = current.get(CONF_PUMP_ENTITY)
         if current_pump:
             pump_schema[vol.Optional(
-                CONF_PUMP_ENTITY, default=current_pump
+                CONF_PUMP_ENTITY,
+                description={"suggested_value": current_pump},
             )] = PUMP_ENTITY_SELECTOR
         else:
             pump_schema[vol.Optional(CONF_PUMP_ENTITY)] = PUMP_ENTITY_SELECTOR
