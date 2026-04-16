@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     CONF_DENSITY,
+    CONF_EMA_ALPHA,
     CONF_FLOW_A,
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
@@ -22,6 +23,7 @@ from .const import (
     CONF_SUPPLY_TEMP_A,
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
+    DEFAULT_EMA_ALPHA,
     DEFAULT_PUMP_DELAY,
     DOMAIN,
     MEDIUM_CUSTOM,
@@ -61,6 +63,13 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             config_entry, data=new_data, version=4
         )
 
+    if config_entry.version == 4:
+        # Add EMA alpha field defaulting to 1.0 (no smoothing) for existing entries.
+        new_data = {**config_entry.data, CONF_EMA_ALPHA: DEFAULT_EMA_ALPHA}
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, version=5
+        )
+
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True
 
@@ -84,6 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config_type = entry.data.get(CONF_TYPE)
     pump_entity = entry.data.get(CONF_PUMP_ENTITY)
     pump_delay = entry.data.get(CONF_PUMP_DELAY, DEFAULT_PUMP_DELAY)
+    ema_alpha = float(entry.data.get(CONF_EMA_ALPHA, DEFAULT_EMA_ALPHA))
     specific_heat, density = _get_medium_properties(entry.data)
 
     if config_type == TYPE_DUAL_LINE:
@@ -98,6 +108,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             pump_delay=pump_delay,
             specific_heat=specific_heat,
             density=density,
+            ema_alpha=ema_alpha,
         )
     else:
         coordinator = StandardFlowCoordinator(
@@ -109,6 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             pump_delay=pump_delay,
             specific_heat=specific_heat,
             density=density,
+            ema_alpha=ema_alpha,
         )
 
     coordinator.mode = entry.data.get(CONF_MODE, MODE_SOURCE)

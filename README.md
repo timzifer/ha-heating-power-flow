@@ -8,9 +8,14 @@ A Home Assistant custom integration that calculates thermal power (kW) and energ
 
 - **Thermal power calculation** from flow rate and temperature difference
 - **Separate heating & cooling energy counters** (Energy Dashboard compatible)
+- **System energy sensor** with net balance (heating - cooling)
+- **Circuit mode** - Source (heat producer) or Sink (heat consumer) with sign-adjusted system power
 - **Two configuration modes:**
   - **Standard Triplet** - one flow sensor + supply & return temperature
   - **Dual-Line** - two supply lines with individual flow sensors sharing a common return temperature
+- **Medium selection** - Water, Ethylene/Propylene Glycol mixtures (20/30/40%), or custom fluid properties
+- **Pump gating** - optional pump entity with configurable delay to suppress invalid readings during startup
+- **EMA smoothing** - optional Exponential Moving Average filter on input sensors for noise reduction
 - **Automatic unit conversion** (L/min, L/h, m³/h, gal/min)
 - **Trapezoidal integration** for accurate energy calculation
 - **Survives restarts** via state restoration
@@ -24,19 +29,34 @@ A Home Assistant custom integration that calculates thermal power (kW) and energ
 | Sensor | Unit | Description |
 |--------|------|-------------|
 | Thermal Power | kW | Current heating (+) or cooling (-) power |
+| System Power | kW | Sign-adjusted power (positive = energy delivered in configured direction) |
 | Heating Energy | kWh | Accumulated heating energy (Energy Dashboard compatible) |
 | Cooling Energy | kWh | Accumulated cooling energy (Energy Dashboard compatible) |
+| System Energy | kWh | Net energy balance (heating - cooling) |
 | Temperature Difference (ΔT) | °C | Supply temp - return temp |
 | Flow Rate | L/min | Normalized flow rate |
+| Circuit Mode | - | Diagnostic: shows current mode (source/sink) |
+
+When a pump entity is configured, additional gated temperature sensors are created:
+
+| Sensor | Unit | Description |
+|--------|------|-------------|
+| Supply Temperature | °C | Supply temp (only available when pump is active) |
+| Return Temperature | °C | Return temp (only available when pump is active) |
 
 ### Dual-Line (Special)
 
 | Sensor | Unit | Description |
 |--------|------|-------------|
 | Thermal Power A / B / Total | kW | Power per line and combined total |
+| System Power | kW | Sign-adjusted total power |
 | Heating Energy A / B / Total | kWh | Heating energy per line and total |
 | Cooling Energy A / B / Total | kWh | Cooling energy per line and total |
+| System Energy A / B / Total | kWh | Net energy balance per line and total |
 | ΔT A / B | °C | Temperature difference per line |
+| Circuit Mode | - | Diagnostic: shows current mode (source/sink) |
+
+When a pump entity is configured, additional gated temperature sensors are created for Supply A, Supply B, and Return.
 
 ## Formula
 
@@ -44,10 +64,10 @@ A Home Assistant custom integration that calculates thermal power (kW) and energ
 P(kW) = Flow(L/min) × ΔT(°C) × ρ × cp / 60
 
 Where:
-  ρ  = 1.0 kg/L      (water density)
-  cp = 4.186 kJ/(kg·K) (specific heat capacity of water)
+  ρ  = density in kg/L       (water: 1.0)
+  cp = specific heat in kJ/(kg·K) (water: 4.186)
 
-Simplified:
+Example for water:
   P(kW) ≈ Flow(L/min) × ΔT(°C) × 0.06977
 ```
 
@@ -76,23 +96,83 @@ Energy is integrated using the trapezoidal rule:
 
 1. Go to **Settings** → **Devices & Services** → **Add Integration**
 2. Search for **"Heating Power Flow"**
-3. Enter a name and choose the configuration type:
+3. Enter a name and choose the configuration type
 
-### Standard Triplet
+### Step 1: General Settings
 
-Select three existing sensors:
-- **Flow sensor** - volumetric flow rate (L/min, L/h, m³/h, or gal/min)
-- **Supply temperature** (Vorlauf) - temperature of the outgoing water
-- **Return temperature** (Rücklauf) - temperature of the returning water
+| Setting | Description |
+|---------|-------------|
+| **Name** | Name for this energy flow monitor |
+| **Configuration type** | Standard (Triplet) or Dual-Line (Special) |
+| **Circuit mode** | Source (heat producer, e.g. heat pump) or Sink (heat consumer, e.g. floor heating) |
+| **Heat transfer medium** | Water, Glycol mixtures, or Custom (enter specific heat & density manually) |
 
-### Dual-Line (Special)
+### Step 2: Sensor Selection
 
-Select five existing sensors for two supply lines sharing one return:
-- **Supply temperature A** (Vorlauftemperatur A)
-- **Flow sensor A** (Durchflusssensor Leitung A)
-- **Supply temperature B** (Vorlauftemperatur B)
-- **Flow sensor B** (Durchflusssensor Leitung B)
-- **Common return temperature** (Gemeinsame Rücklauftemperatur)
+#### Standard Triplet
+
+| Setting | Description |
+|---------|-------------|
+| **Flow sensor** | Volumetric flow rate (L/min, L/h, m³/h, or gal/min) |
+| **Supply temperature** (Vorlauf) | Temperature of the outgoing water |
+| **Return temperature** (Rücklauf) | Temperature of the returning water |
+| **Pump entity** *(optional)* | Entity indicating pump state (binary_sensor, switch, etc.) |
+| **Pump delay** *(optional)* | Seconds to wait after pump turns on before values are valid (default: 30) |
+| **EMA smoothing factor (α)** *(optional)* | Smoothing factor for input sensors (default: 1.0 = off) |
+
+#### Dual-Line (Special)
+
+| Setting | Description |
+|---------|-------------|
+| **Supply temperature A / B** | Temperature sensors for each supply line |
+| **Flow sensor A / B** | Flow rate sensors for each line |
+| **Common return temperature** | Shared return temperature sensor |
+| **Pump entity** *(optional)* | Entity indicating pump state |
+| **Pump delay** *(optional)* | Seconds to wait after pump turns on (default: 30) |
+| **EMA smoothing factor (α)** *(optional)* | Smoothing factor for input sensors (default: 1.0 = off) |
+
+### Pump Gating
+
+When a pump entity is configured, the integration suppresses invalid readings:
+
+- **Pump turns on:** Waits for the configured delay (default 30s) before reporting real values. During the delay, power = 0.
+- **Pump turns off:** Immediately sets power to 0 and stops energy accumulation.
+- **Gated temperature sensors** are only available when the pump is active, preventing stale temperature readings from appearing in dashboards.
+
+### EMA Smoothing
+
+The optional Exponential Moving Average filter smooths noisy sensor inputs before power calculation:
+
+```
+smoothed = α × raw_value + (1 - α) × previous_smoothed
+```
+
+| α value | Effect |
+|---------|--------|
+| **1.0** | No smoothing (default) - raw values pass through |
+| **0.3 - 0.5** | Light smoothing |
+| **0.1 - 0.3** | Moderate smoothing |
+| **< 0.1** | Heavy smoothing |
+
+The EMA automatically resets when:
+- A sensor becomes unavailable (fresh start on recovery)
+- The pump state changes (no stale trailing values)
+
+### Medium Selection
+
+Pre-configured fluid properties are available for common heat transfer media:
+
+| Medium | Specific Heat (kJ/(kg·K)) | Density (kg/L) |
+|--------|---------------------------|-----------------|
+| Water | 4.186 | 1.000 |
+| Ethylene Glycol 20% | 3.860 | 1.025 |
+| Ethylene Glycol 30% | 3.560 | 1.040 |
+| Ethylene Glycol 40% | 3.260 | 1.054 |
+| Propylene Glycol 20% | 3.920 | 1.017 |
+| Propylene Glycol 30% | 3.680 | 1.026 |
+| Propylene Glycol 40% | 3.430 | 1.034 |
+
+Select **Custom** to enter your own specific heat capacity and density values.
 
 ## Energy Dashboard
 
@@ -107,6 +187,12 @@ The heating and cooling energy sensors use `SensorStateClass.TOTAL_INCREASING`, 
 - **Negative ΔT** (supply < return) → Cooling mode → Power is negative
 - Heating energy accumulates only during heating (positive power)
 - Cooling energy accumulates only during cooling (negative power, stored as positive value)
+- The **System Energy** sensor provides the net balance: heating - cooling
+
+### Circuit Mode
+
+- **Source** (e.g. heat pump, boiler): System Power = Thermal Power (positive when producing heat)
+- **Sink** (e.g. floor heating, radiator): System Power = -Thermal Power (positive when consuming heat)
 
 ## Supported Flow Units
 
@@ -127,6 +213,19 @@ Units are automatically detected from the source sensor's `unit_of_measurement` 
 
 Eine Home Assistant Custom Integration zur Berechnung der thermischen Leistung (kW) und des Energieverbrauchs (kWh) aus vorhandenen Durchfluss- und Temperatursensoren.
 
+### Funktionen
+
+- Thermische Leistungsberechnung aus Durchfluss und Temperaturdifferenz
+- Getrennte Heiz- & Kühlenergie-Zähler (kompatibel mit dem Energie-Dashboard)
+- System-Energiesensor mit Nettobilanz
+- Kreislaufmodus: Quelle (Wärmeerzeuger) oder Senke (Wärmeverbraucher)
+- Medienauswahl: Wasser, Glykol-Gemische oder benutzerdefinierte Flüssigkeitseigenschaften
+- Pumpen-Gating mit konfigurierbarer Verzögerung
+- EMA-Glättung (Exponential Moving Average) für verrauschte Sensorwerte
+- Automatische Einheitenumrechnung (L/min, L/h, m³/h, gal/min)
+- Trapezintegration für präzise Energieberechnung
+- Übersteht Neustarts dank Zustandswiederherstellung
+
 ### Konfigurationstypen
 
 **Standard-Triplet:**
@@ -139,13 +238,23 @@ Eine Home Assistant Custom Integration zur Berechnung der thermischen Leistung (
 - Vorlauftemperatur B + Durchflusssensor B
 - Gemeinsame Rücklauftemperatur
 
+### Optionale Einstellungen
+
+- **Pumpenentität** - Unterdrückt ungültige Messwerte wenn die Pumpe aus ist
+- **Pumpenverzögerung** - Wartezeit nach dem Einschalten der Pumpe (Standard: 30 Sekunden)
+- **EMA-Glättungsfaktor (α)** - 1.0 = aus, kleinere Werte = stärkere Glättung (empfohlen: 0.1–0.5)
+- **Wärmeträgermedium** - Wasser, Glykol-Gemische, oder benutzerdefiniert
+
 ### Erstellte Sensoren
 
 - **Thermische Leistung** (kW) - positiv = Heizen, negativ = Kühlen
+- **Systemleistung** (kW) - vorzeichenbereinigt je nach Kreislaufmodus
 - **Heizenergie** (kWh) - akkumuliert nur bei positiver Leistung
 - **Kühlenergie** (kWh) - akkumuliert nur bei negativer Leistung
+- **Systemenergie** (kWh) - Nettobilanz (Heizen - Kühlen)
 - **Temperaturdifferenz ΔT** (°C) - Vorlauf minus Rücklauf
 - **Durchflussrate** (L/min) - normalisierte Durchflussmenge
+- **Kreislaufmodus** - Diagnose: zeigt aktuellen Modus (Quelle/Senke)
 
 ### Installation
 

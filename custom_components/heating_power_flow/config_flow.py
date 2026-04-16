@@ -12,6 +12,7 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_DENSITY,
+    CONF_EMA_ALPHA,
     CONF_FLOW_A,
     CONF_FLOW_B,
     CONF_FLOW_SENSOR,
@@ -26,6 +27,7 @@ from .const import (
     CONF_SUPPLY_TEMP_A,
     CONF_SUPPLY_TEMP_B,
     CONF_TYPE,
+    DEFAULT_EMA_ALPHA,
     DEFAULT_PUMP_DELAY,
     DOMAIN,
     MEDIUM_CUSTOM,
@@ -98,11 +100,20 @@ DENSITY_SELECTOR = selector.NumberSelector(
     )
 )
 
+EMA_ALPHA_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=0.01,
+        max=1.0,
+        step=0.01,
+        mode=selector.NumberSelectorMode.SLIDER,
+    )
+)
+
 
 class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Heating Power Flow."""
 
-    VERSION = 4
+    VERSION = 5
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -213,6 +224,9 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional(
                         CONF_PUMP_DELAY, default=DEFAULT_PUMP_DELAY
                     ): PUMP_DELAY_SELECTOR,
+                    vol.Optional(
+                        CONF_EMA_ALPHA, default=DEFAULT_EMA_ALPHA
+                    ): EMA_ALPHA_SELECTOR,
                 }
             ),
         )
@@ -241,6 +255,9 @@ class HeatingPowerFlowConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional(
                         CONF_PUMP_DELAY, default=DEFAULT_PUMP_DELAY
                     ): PUMP_DELAY_SELECTOR,
+                    vol.Optional(
+                        CONF_EMA_ALPHA, default=DEFAULT_EMA_ALPHA
+                    ): EMA_ALPHA_SELECTOR,
                 }
             ),
         )
@@ -379,6 +396,10 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
                         default=current.get(CONF_RETURN_TEMP, ""),
                     ): ENTITY_SELECTOR,
                     **pump_schema,
+                    vol.Optional(
+                        CONF_EMA_ALPHA,
+                        default=current.get(CONF_EMA_ALPHA, DEFAULT_EMA_ALPHA),
+                    ): EMA_ALPHA_SELECTOR,
                 }
             ),
         )
@@ -433,6 +454,10 @@ class HeatingPowerFlowOptionsFlow(OptionsFlow):
                         default=current.get(CONF_RETURN_TEMP, ""),
                     ): ENTITY_SELECTOR,
                     **pump_schema,
+                    vol.Optional(
+                        CONF_EMA_ALPHA,
+                        default=current.get(CONF_EMA_ALPHA, DEFAULT_EMA_ALPHA),
+                    ): EMA_ALPHA_SELECTOR,
                 }
             ),
         )
