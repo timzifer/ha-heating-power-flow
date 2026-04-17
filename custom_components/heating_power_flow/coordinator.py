@@ -159,11 +159,6 @@ class PumpGatingMixin:
             return True
         return self._pump_active
 
-    @property
-    def pump_gated(self) -> bool:
-        """Return True if a pump entity is configured and currently reporting active."""
-        return self._pump_entity is not None and self._pump_active
-
     async def _async_start_pump_tracking(self) -> None:
         """Start listening to pump entity state changes."""
         if self._pump_entity is None:
@@ -357,18 +352,15 @@ class StandardFlowCoordinator(PumpGatingMixin):
 
         if self.pump_active:
             self.power_kw = calculate_power_kw(self.flow_rate_l_min, self.delta_t, self._power_factor)
+            self.supply_temp_value = supply_temp
+            self.return_temp_value = return_temp
             now = datetime.now(timezone.utc)
             self.energy.update(self.power_kw, now)
         else:
             self.power_kw = 0.0
-            self.energy.reset_tracking()
-
-        if self.pump_gated:
-            self.supply_temp_value = supply_temp
-            self.return_temp_value = return_temp
-        else:
             self.supply_temp_value = None
             self.return_temp_value = None
+            self.energy.reset_tracking()
 
         self._notify()
 
@@ -570,8 +562,8 @@ class DualLineFlowCoordinator(PumpGatingMixin):
                 self.total_power_kw = None
             self.total_energy.reset_tracking()
 
-        # Gated temperature passthrough: only when pump entity is configured and active
-        if self.pump_gated:
+        # Gated temperature passthrough
+        if self.pump_active:
             self.supply_temp_a_value = supply_a
             self.supply_temp_b_value = supply_b
             self.return_temp_value = return_temp
