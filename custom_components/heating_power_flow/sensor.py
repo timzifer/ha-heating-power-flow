@@ -24,7 +24,6 @@ from .const import (
     CONF_FLOW_SENSOR,
     CONF_MODE,
     CONF_NAME,
-    CONF_PUMP_ENTITY,
     CONF_RETURN_TEMP,
     CONF_SUPPLY_TEMP,
     CONF_SUPPLY_TEMP_A,
@@ -78,20 +77,17 @@ def _create_standard_entities(
         DeltaTSensor(coordinator, entry, name, "", "delta_t"),
         FlowRateSensor(coordinator, entry, name),
         CircuitModeSensor(coordinator, entry, name),
+        GatedTemperatureSensor(
+            coordinator, entry, name,
+            "Supply Temperature", "supply_temp_value",
+            "supply_temp", "mdi:thermometer-chevron-up",
+        ),
+        GatedTemperatureSensor(
+            coordinator, entry, name,
+            "Return Temperature", "return_temp_value",
+            "return_temp", "mdi:thermometer-chevron-down",
+        ),
     ]
-    if entry.data.get(CONF_PUMP_ENTITY):
-        entities.extend([
-            GatedTemperatureSensor(
-                coordinator, entry, name,
-                "Supply Temperature", "supply_temp_value",
-                "supply_temp", "mdi:thermometer-chevron-up",
-            ),
-            GatedTemperatureSensor(
-                coordinator, entry, name,
-                "Return Temperature", "return_temp_value",
-                "return_temp", "mdi:thermometer-chevron-down",
-            ),
-        ])
     return entities
 
 
@@ -127,25 +123,22 @@ def _create_dual_line_entities(
         ),
         SystemPowerSensor(coordinator, entry, name, "total_power_kw"),
         CircuitModeSensor(coordinator, entry, name),
+        GatedTemperatureSensor(
+            coordinator, entry, name,
+            "Supply Temperature A", "supply_temp_a_value",
+            "supply_temp_a", "mdi:thermometer-chevron-up",
+        ),
+        GatedTemperatureSensor(
+            coordinator, entry, name,
+            "Supply Temperature B", "supply_temp_b_value",
+            "supply_temp_b", "mdi:thermometer-chevron-up",
+        ),
+        GatedTemperatureSensor(
+            coordinator, entry, name,
+            "Return Temperature", "return_temp_value",
+            "return_temp", "mdi:thermometer-chevron-down",
+        ),
     ]
-    if entry.data.get(CONF_PUMP_ENTITY):
-        entities.extend([
-            GatedTemperatureSensor(
-                coordinator, entry, name,
-                "Supply Temperature A", "supply_temp_a_value",
-                "supply_temp_a", "mdi:thermometer-chevron-up",
-            ),
-            GatedTemperatureSensor(
-                coordinator, entry, name,
-                "Supply Temperature B", "supply_temp_b_value",
-                "supply_temp_b", "mdi:thermometer-chevron-up",
-            ),
-            GatedTemperatureSensor(
-                coordinator, entry, name,
-                "Return Temperature", "return_temp_value",
-                "return_temp", "mdi:thermometer-chevron-down",
-            ),
-        ])
     return entities
 
 
@@ -559,6 +552,11 @@ class GatedTemperatureSensor(HeatingPowerFlowBaseSensor):
         self._attr_name = label
         self._attr_icon = icon
         self._temp_attr = attr
+
+    @property
+    def available(self) -> bool:
+        """Return True only while pump gating reports active values."""
+        return getattr(self._coordinator, self._temp_attr, None) is not None
 
     @property
     def native_value(self) -> float | None:
